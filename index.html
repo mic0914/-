@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.10</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.11</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -52,7 +52,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.10</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.11</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -1190,6 +1190,40 @@ function metrics(){const sea=eff(["DEC04","DEC05","DEC13"]),berth=eff(["DEC03","
  return{sea,berth,land,base,log,port:Math.round(port),relief:Math.round(Math.min(100,rel)),regional:Math.round(Math.min(100,reg))}}
 function grade(s){return s>=90?["S","極めて良好"]:s>=75?["A","主要機能を適切に確保"]:s>=60?["B","限定的な機能確保"]:s>=40?["C","重大なボトルネックが残存"]:["D","港湾機能継続に重大な課題"]}
 function historyHas(fn){return sim.history.some(fn)}
+function firstHistoryEntry(fn){return sim.history.find(fn)||null}
+function firstSevereFinding(dec,min="L3"){
+ return firstHistoryEntry(x=>x.dec===dec&&x.result&&atLeast(x.result.reportedLevel,min))
+}
+function selectionsToReach(startTurn,fn){
+ const hit=firstHistoryEntry(x=>x.turn>startTurn&&fn(x));
+ if(!hit)return null;
+ return{turn:hit.turn,steps:Math.max(1,hit.turn-startTurn)}
+}
+function routeGapComments(add){
+ const berth=firstSevereFinding("DEC03","L3");
+ if(berth){
+  const r=selectionsToReach(berth.turn,x=>x.special==="BERTH_RECOVERY_ALT");
+  if(r&&r.steps>=3)add(87,"ROUTE_BERTH",`岸壁の重大被害把握後、応急復旧・代替施設対応まで${r.steps}回の選択を要しており、判断経路がやや回りくどくなっていました。`)
+ }
+ const power=firstSevereFinding("DEC08","L2");
+ if(power){
+  const r=selectionsToReach(power.turn,x=>x.result?.followUpKind==="POWER_CONTINUITY");
+  if(r&&r.steps>=3)add(86,"ROUTE_POWER",`電力・通信障害の把握後、非常用電源・通信継続条件の確認まで${r.steps}回の選択を要していました。`)
+ }
+ if(sim.scenario==="TCSS"){
+  const flood=firstSevereFinding("DEC06","L4");
+  if(flood){
+   const r=selectionsToReach(flood.turn,x=>x.special&&String(x.special).startsWith("INUND_"));
+   if(r&&r.steps>=3)add(88,"ROUTE_INUNDATION",`広範囲浸水の把握後、入港見合わせ・復旧確認等の浸水対応まで${r.steps}回の選択を要していました。`)
+  }
+ }
+ if(sim.majorMistakes.length){
+  const reason=sim.majorMistakes[0].reason||"";
+  if(reason.includes("通常運用を再開する"))add(106,"WRONG_JUDGMENT","重大被害を把握した状態で通常運用再開を選択しており、最終判断に課題がありました。");
+  else if(reason.includes("代替港中心"))add(104,"WRONG_JUDGMENT","代替港の受入・調整が十分でない段階で代替港中心の運用を選択しており、判断手順に課題がありました。");
+  else if(reason.includes("利用調整が成立していない"))add(104,"WRONG_JUDGMENT","代替港との利用調整成立前に代替港利用方針を決定しており、判断手順に課題がありました。")
+ }
+}
 function responseGapComments(){
  const c=[];
  const add=(priority,key,text)=>{if(!c.some(x=>x.key===key))c.push({priority,key,text})};
@@ -1265,8 +1299,9 @@ function responseGapComments(){
  const staleCritical=Object.entries(sim.known).filter(([d,k])=>["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"].includes(d)&&k.stale&&atLeast(sim.actual[d],"L2"));
  if(staleCritical.length)add(88,"STALE","追加EVENT後に状況が変化した重要機能について、再確認が不足していました。");
 
+ routeGapComments(add);
  c.sort((a,b)=>b.priority-a.priority);
- const limited=c.slice(0,6);
+ const limited=c.slice(0,4);
  if(!limited.length)return[];
  return limited.map(x=>x.text)
 }
