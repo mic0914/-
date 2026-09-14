@@ -1,0 +1,36 @@
+name: Apply Ver.3.25 verdict consistency patch
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-v325.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply patch
+        run: python .github/scripts/patch_v325.py
+      - name: Validate JavaScript and verdict consistency
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          assert 'Ver.3.25' in s
+          assert '提示された対応候補の中で、未実施の大きな対応は確認されませんでした。' in s
+          assert '最終判定が"+g+"となった主な評価要因' in s
+          assert '対応力評価で低かった項目' in s
+          PY
+          node --check /tmp/app.js
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update to Ver.3.25 explaining low verdicts when no response gap is found'
+          git push origin main
