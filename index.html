@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 5分シミュレーション（案） Ver.2.1</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.2.2</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -39,12 +39,12 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <body>
 <div class="app">
 <header>
-  <div class="title">港湾BCP 5分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.2.1</div>
+  <div class="title">港湾BCP 10分シミュレーション（案）</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.2.2</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
-    <div class="turn" id="turnLabel">TURN -- / 15</div>
-    <div class="timer" id="timerLabel">05:00</div>
+    <div class="turn" id="turnLabel">TURN -- / 17</div>
+    <div class="timer" id="timerLabel">10:00</div>
   </div>
   <div class="progress"><div id="progressBar"></div></div>
   <div class="level-help-row"><button type="button" id="levelHelpButton" class="level-help-btn">L0～L4とは？</button></div>
@@ -63,7 +63,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <section id="startScreen">
   <div class="start-card">
     <h2>災害条件を選択</h2>
-    <p>同じ港でも災害によってボトルネックが変わります。選択した災害条件で、5分・15TURNの判断訓練を開始します。</p>
+    <p>同じ港でも災害によってボトルネックが変わります。選択した災害条件で、10分・17TURNの判断訓練を開始します。</p>
     <div class="scenario-grid">
       <button class="scenario-btn" data-scenario="EQTS"><strong>地震＋津波</strong><span>航路・岸壁・漂流物・背後交通・緊急支援輸送</span></button>
       <button class="scenario-btn" data-scenario="TCSS"><strong>台風＋高潮</strong><span>浸水・電力・荷役・コンテナ流出・背後交通</span></button>
@@ -71,7 +71,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
     </div>
   </div>
   <div class="start-card">
-    <span class="badge">15 TURN</span><span class="badge">5分目標</span><span class="badge">ランダム被害</span><span class="badge">代替港分岐</span>
+    <span class="badge">17 TURN</span><span class="badge">10分目標</span><span class="badge">ランダム被害</span><span class="badge">代替港分岐</span>
     <p style="margin-top:10px">選択肢は毎TURNの状況に応じて変化します。全項目を確認するのではなく、限られた時間で優先順位を判断してください。</p>
   </div>
 </section>
@@ -82,14 +82,14 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
   <div class="prompt" id="promptText">次の対応を選択してください</div>
   <div id="choiceList" class="choice-list"></div>
   <button id="restartButton" class="restart secondary">災害条件を選び直す</button>
-  <div class="small-note">選択肢を1回タップすると確定します。00:00を超えてもTURN15まで継続します。</div>
+  <div class="small-note">選択肢を1回タップすると確定します。00:00を超えてもTURN17まで継続します。</div>
 </div>
 </div>
 
 <script>
 "use strict";
 
-const DEBUG_MODE=false,TOTAL_TURNS=15,TARGET_SECONDS=300;
+const DEBUG_MODE=false,TOTAL_TURNS=17,TARGET_SECONDS=600;
 const LEVEL_VALUE={L0:0,L1:1,L2:2,L3:3,L4:4};
 const LEVEL_FUNCTION={L0:100,L1:90,L2:60,L3:30,L4:0};
 const LEVEL_LABEL={L0:"正常",L1:"軽微",L2:"中程度",L3:"重大",L4:"甚大"};
@@ -226,7 +226,7 @@ const FINAL_POLICIES=[
 ];
 
 let timerHandle=null;
-const sim={scenario:null,currentTurn:1,elapsedSeconds:0,remainingSeconds:300,actual:{},known:{},history:[],events:[],lastResult:null,lastEventAt:-999,eventBoosts:{},recovery:null,finalPolicy:null,altPorts:null,finished:false,currentOptions:[],warning60:false,overtime:false};
+const sim={scenario:null,currentTurn:1,elapsedSeconds:0,remainingSeconds:600,actual:{},known:{},history:[],events:[],lastResult:null,lastEventAt:-999,eventBoosts:{},recovery:null,finalPolicy:null,altPorts:null,finished:false,currentOptions:[],warning60:false,overtime:false};
 
 const startScreen=document.getElementById("startScreen"),chat=document.getElementById("chat"),controlWrap=document.getElementById("controlWrap"),choiceList=document.getElementById("choiceList"),restartButton=document.getElementById("restartButton"),timerLabel=document.getElementById("timerLabel"),turnLabel=document.getElementById("turnLabel"),progressBar=document.getElementById("progressBar"),promptText=document.getElementById("promptText"),scenarioLabel=document.getElementById("scenarioLabel"),levelHelpButton=document.getElementById("levelHelpButton"),levelGuide=document.getElementById("levelGuide");
 
@@ -238,7 +238,7 @@ function hasChecked(dec){return sim.known[dec]&&sim.known[dec].level!=="UNKNOWN"
 function lastEntry(dec){return[...sim.history].reverse().find(x=>x.dec===dec)}
 function addMessage(side,type,name,text,chip=""){const row=document.createElement("div");row.className=`msg-row ${side}`;const m=document.createElement("div");m.className=`msg ${type}`;const n=document.createElement("div");n.className="name";n.textContent=name;const b=document.createElement("div");b.textContent=text;m.append(n,b);if(chip){const c=document.createElement("span");c.className="chip";c.textContent=chip;m.appendChild(c)}row.appendChild(m);chat.appendChild(row);requestAnimationFrame(()=>row.scrollIntoView({behavior:"smooth",block:"end"}))}
 function syncControlHeight(){if(controlWrap.style.display==="none"){document.documentElement.style.setProperty("--control-height","0px");return}const h=Math.ceil(controlWrap.getBoundingClientRect().height);document.documentElement.style.setProperty("--control-height",`${h}px`)}
-function updateHeader(){turnLabel.textContent=sim.scenario?`TURN ${String(sim.currentTurn).padStart(2,"0")} / 15`:"TURN -- / 15";timerLabel.textContent=formatClock(sim.remainingSeconds);timerLabel.classList.toggle("overtime",sim.remainingSeconds<0);progressBar.style.width=sim.scenario?`${Math.max(0,Math.min(100,(sim.currentTurn-1)/15*100))}%`:"0%"}
+function updateHeader(){turnLabel.textContent=sim.scenario?`TURN ${String(sim.currentTurn).padStart(2,"0")} / 17`:"TURN -- / 17";timerLabel.textContent=formatClock(sim.remainingSeconds);timerLabel.classList.toggle("overtime",sim.remainingSeconds<0);progressBar.style.width=sim.scenario?`${Math.max(0,Math.min(100,(sim.currentTurn-1)/17*100))}%`:"0%"}
 function initKnown(){const o={};for(const d of Object.keys(DEC_META))o[d]={level:"UNKNOWN",confidence:null,confirmed:false,lastCheckedTurn:null,stale:false};return o}
 function deriveDec13(state,sc){if(sc==="EQTS")return clampLevel(Math.max(Math.max(0,LEVEL_VALUE[state.DEC04]-1),LEVEL_VALUE[state.DEC05]));if(sc==="TCSS")return clampLevel(Math.max(LEVEL_VALUE[state.DEC05],Math.max(0,LEVEL_VALUE[state.DEC07]-1)));return clampLevel(Math.max(LEVEL_VALUE[state.DEC04],LEVEL_VALUE[state.DEC05],LEVEL_VALUE[state.DEC07]))}
 function createActual(sc){const s={};for(const[d,w]of Object.entries(SCENARIOS[sc].weights))s[d]=weightedLevel(w);s.DEC13=deriveDec13(s,sc);return s}
@@ -297,15 +297,15 @@ function activateAlternativePortIfNeeded(){
 }
 function beginScenario(code){
  if(timerHandle)clearInterval(timerHandle);
- sim.scenario=code;sim.currentTurn=1;sim.elapsedSeconds=0;sim.remainingSeconds=300;sim.actual=createActual(code);sim.known=initKnown();sim.history=[];sim.events=[];sim.lastResult=null;sim.lastEventAt=-999;sim.eventBoosts={};sim.recovery=null;sim.finalPolicy=null;sim.altPorts=createAltPorts(code);sim.finished=false;sim.currentOptions=[];sim.warning60=false;sim.overtime=false;
+ sim.scenario=code;sim.currentTurn=1;sim.elapsedSeconds=0;sim.remainingSeconds=600;sim.actual=createActual(code);sim.known=initKnown();sim.history=[];sim.events=[];sim.lastResult=null;sim.lastEventAt=-999;sim.eventBoosts={};sim.recovery=null;sim.finalPolicy=null;sim.altPorts=createAltPorts(code);sim.finished=false;sim.currentOptions=[];sim.warning60=false;sim.overtime=false;
  startScreen.style.display="none";chat.style.display="block";controlWrap.style.display="block";restartButton.style.display="none";choiceList.style.display="grid";chat.innerHTML="";
  scenarioLabel.textContent=SCENARIOS[code].scenarioId;
  addMessage("left","system","災害対策本部",SCENARIOS[code].intro,"情報確度 C");
  updateHeader();renderTurn();syncControlHeight();startTimer();
 }
-function returnToStart(){if(timerHandle)clearInterval(timerHandle);sim.scenario=null;sim.finished=true;chat.style.display="none";controlWrap.style.display="none";startScreen.style.display="block";scenarioLabel.textContent="未選択";sim.remainingSeconds=300;sim.currentTurn=1;updateHeader();syncControlHeight()}
+function returnToStart(){if(timerHandle)clearInterval(timerHandle);sim.scenario=null;sim.finished=true;chat.style.display="none";controlWrap.style.display="none";startScreen.style.display="block";scenarioLabel.textContent="未選択";sim.remainingSeconds=600;sim.currentTurn=1;updateHeader();syncControlHeight()}
 
-function startTimer(){timerHandle=setInterval(()=>{if(sim.finished)return;sim.elapsedSeconds++;sim.remainingSeconds=300-sim.elapsedSeconds;if(sim.remainingSeconds===60&&!sim.warning60){sim.warning60=true;addMessage("left","system","システム","残り1分です。")}if(sim.remainingSeconds===0&&!sim.overtime){sim.overtime=true;addMessage("left","event danger","システム","TARGET TIME OVER\n目標時間5分を超過しました。TURN15まで継続します。")}maybeEvent();updateHeader()},1000)}
+function startTimer(){timerHandle=setInterval(()=>{if(sim.finished)return;sim.elapsedSeconds++;sim.remainingSeconds=600-sim.elapsedSeconds;if(sim.remainingSeconds===60&&!sim.warning60){sim.warning60=true;addMessage("left","system","システム","残り1分です。")}if(sim.remainingSeconds===0&&!sim.overtime){sim.overtime=true;addMessage("left","event danger","システム","TARGET TIME OVER\n目標時間10分を超過しました。TURN17まで継続します。")}maybeEvent();updateHeader()},1000)}
 
 const EVENTS={
 EQTS:[
@@ -327,7 +327,7 @@ TCHW:[
 {id:"HW-IMPROVE",min:220,max:290,p:.55,name:"気象条件改善"}
 ]
 };
-function maybeEvent(){if(!sim.scenario||sim.finished||sim.currentTurn>=15||sim.elapsedSeconds-sim.lastEventAt<15)return;for(const e of EVENTS[sim.scenario]){if(sim.events.some(x=>x.id===e.id)||sim.elapsedSeconds<e.min||sim.elapsedSeconds>e.max)continue;const per=e.p/Math.max(1,e.max-e.min+1);if(Math.random()<per){triggerEvent(e);break}}}
+function maybeEvent(){if(!sim.scenario||sim.finished||sim.currentTurn>=16||sim.elapsedSeconds-sim.lastEventAt<15)return;for(const e of EVENTS[sim.scenario]){if(sim.events.some(x=>x.id===e.id)||sim.elapsedSeconds<e.min||sim.elapsedSeconds>e.max)continue;const per=e.p/Math.max(1,e.max-e.min+1);if(Math.random()<per){triggerEvent(e);break}}}
 function triggerEvent(e){sim.lastEventAt=sim.elapsedSeconds;sim.events.push({id:e.id,at:sim.elapsedSeconds});let msg="";
  if(e.id==="EQ-AFTER"){msg="余震が発生しました。既被災施設で被害が拡大した可能性があります。";for(const d of["DEC03","DEC06","DEC11"])if(atLeast(sim.actual[d],"L2")&&Math.random()<.25){sim.actual[d]=clampLevel(LEVEL_VALUE[sim.actual[d]]+1);if(hasChecked(d))sim.known[d].stale=true}Object.assign(sim.eventBoosts,{DEC03:20,DEC06:20,DEC11:20})}
  if(e.id==="EQ-TS"){msg="津波警報が継続しています。港内の水位変動が続いています。";sim.eventBoosts.DEC05=20;sim.eventBoosts.DEC06=10;if(hasChecked("DEC05"))sim.known.DEC05.stale=true}
@@ -341,7 +341,7 @@ function triggerEvent(e){sim.lastEventAt=sim.elapsedSeconds;sim.events.push({id:
  if(e.id==="HW-GUST"){msg="港湾区域で強い突風が観測されました。荷役・ヤード作業の安全確保が必要です。";if(Math.random()<.25)sim.actual.DEC07=clampLevel(LEVEL_VALUE[sim.actual.DEC07]+1);if(hasChecked("DEC07"))sim.known.DEC07.stale=true;Object.assign(sim.eventBoosts,{DEC07:35,DEC06:20})}
  if(e.id==="HW-SHIP"){msg="船会社から、高波・暴風のため大型船の入港を見合わせるとの連絡が入りました。";sim.eventBoosts.DEC13=40;sim.eventBoosts.DEC04=15}
  if(e.id==="HW-IMPROVE"){msg="暴風のピークを越え、風速・波高は低下傾向です。限定的な港内確認を開始できます。";sim.eventBoosts.DEC04=20;sim.eventBoosts.DEC13=25;sim.eventBoosts.DEC10=20}
- addMessage("left","event","⚠ EVENT",msg);if(sim.currentTurn>=2&&sim.currentTurn<=13){sim.currentOptions=generateDynamicOptions();renderOptions(sim.currentOptions,true)}
+ addMessage("left","event","⚠ EVENT",msg);if(sim.currentTurn>=2&&sim.currentTurn<=15){sim.currentOptions=generateDynamicOptions();renderOptions(sim.currentOptions,true)}
 }
 
 function opt(dec,type="CHECK",label=null){return{id:`${type}-${dec}-${Math.random().toString(36).slice(2,7)}`,dec,type,label:label||DEC_META[dec].baseLabel,priority:0}}
@@ -393,7 +393,7 @@ function resolveAlternativePort(option){
   k.coordinated=status;
   if(status==="REJECTED")return `${p.name}との利用調整を行いましたが、現時点では成立しませんでした。\n・船舶受入：${altVesselText(p.actual.vessel)}\n・岸壁：${altBerthText(p.actual.berth)}\n・背後交通：${altAccessText(p.actual.access)}\n\n別の代替港又は自港応急復旧を検討する必要があります。`;
   if(status==="CONDITIONAL")return `${p.name}との利用調整は条件付きで成立しました。\n・船舶受入：${altVesselText(p.actual.vessel)}\n・岸壁：${altBerthText(p.actual.berth)}\n・荷役能力：${altHandlingText(p.actual.handling)}\n\n対象船型・時間帯・貨物量を限定すれば代替輸送が可能です。`;
-  return `${p.name}との利用調整が成立しました。\n・船舶受入：${altVesselText(p.actual.vessel)}\n・岸壁：${altBerthText(p.actual.berth)}\n・荷役能力：${altHandlingText(p.actual.handling)}\n\nTURN14で自港との併用又は代替港中心への切替を正式判断できます。`
+  return `${p.name}との利用調整が成立しました。\n・船舶受入：${altVesselText(p.actual.vessel)}\n・岸壁：${altBerthText(p.actual.berth)}\n・荷役能力：${altHandlingText(p.actual.handling)}\n\nTURN16で自港との併用又は代替港中心への切替を正式判断できます。`
  }
  if(option.id.startsWith("ALT-CARGO-")){
   k.cargo=true;a.stage=Math.max(a.stage,3);
@@ -422,8 +422,8 @@ function recoveryOptions(){const c=[],k=sim.known,sc=sim.scenario;
  if(sc==="TCHW")c.push({id:"REC-WAIT",type:"RECOVERY",dec:"DEC13",label:"気象回復を待ち、安全確認後に条件付き運用へ移行する"});
  c.push({id:"REC-EXTERNAL",type:"RECOVERY",dec:"DEC10",label:"外部応援・復旧資源を要請する"});
  const u=[];for(const x of c)if(!u.some(y=>y.id===x.id))u.push(x);return u.slice(0,5)}
-function renderOptions(options,refreshed=false){sim.currentOptions=options;choiceList.innerHTML="";for(const x of options){const b=document.createElement("button");b.className="choice-button";b.textContent=x.label;b.onclick=()=>handleDecision(x);choiceList.appendChild(b)}promptText.textContent=refreshed?"状況が更新されました。次の対応を選択してください":sim.currentTurn===14?"復旧・代替方針を選択してください":sim.currentTurn===15?"最終的な港湾運用方針を選択してください":"次の対応を選択してください";syncControlHeight();requestAnimationFrame(()=>{const l=chat.lastElementChild;if(l)l.scrollIntoView({behavior:"smooth",block:"end"})})}
-function renderTurn(){updateHeader();if(sim.currentTurn===1)renderOptions(initialOptions());else if(sim.currentTurn<=13)renderOptions(generateDynamicOptions());else if(sim.currentTurn===14){addMessage("left","system","システム","確認フェーズを終了します。現在までの情報を基に、復旧・代替方針を決定してください。");renderOptions(recoveryOptions())}else if(sim.currentTurn===15){addMessage("left","system","システム","最終的な港湾運用方針を決定してください。");renderOptions(FINAL_POLICIES.map(x=>({...x,type:"POLICY"})))}}
+function renderOptions(options,refreshed=false){sim.currentOptions=options;choiceList.innerHTML="";for(const x of options){const b=document.createElement("button");b.className="choice-button";b.textContent=x.label;b.onclick=()=>handleDecision(x);choiceList.appendChild(b)}promptText.textContent=refreshed?"状況が更新されました。次の対応を選択してください":sim.currentTurn===16?"復旧・代替方針を選択してください":sim.currentTurn===17?"最終的な港湾運用方針を選択してください":"次の対応を選択してください";syncControlHeight();requestAnimationFrame(()=>{const l=chat.lastElementChild;if(l)l.scrollIntoView({behavior:"smooth",block:"end"})})}
+function renderTurn(){updateHeader();if(sim.currentTurn===1)renderOptions(initialOptions());else if(sim.currentTurn<=15)renderOptions(generateDynamicOptions());else if(sim.currentTurn===16){addMessage("left","system","システム","確認フェーズを終了します。現在までの情報を基に、復旧・代替方針を決定してください。");renderOptions(recoveryOptions())}else if(sim.currentTurn===17){addMessage("left","system","システム","最終的な港湾運用方針を決定してください。");renderOptions(FINAL_POLICIES.map(x=>({...x,type:"POLICY"})))}}
 
 function confidence(type){const r=Math.random();return(type==="FOLLOW_UP"||type==="RECHECK")?(r<.7?"A":"B"):(r<.4?"A":r<.8?"B":"C")}
 function underReport(actual,c){if(c!=="C"||actual==="L0")return actual;return Math.random()<.55?clampLevel(LEVEL_VALUE[actual]-1):actual}
@@ -454,7 +454,7 @@ ${center?"主要貨物・船舶を代替港中心へ切り替えます。":"自�
  return out==="GOOD"?"対応は十分な効果を上げ、対象機能を大きく改善しました。":out==="PARTIAL"?"対応は部分的に効果を上げました。条件付きで利用可能な範囲が拡大しました。":"短時間では十分な効果を得られませんでした。追加対応が必要です。"}
 function disableChoices(v){choiceList.querySelectorAll(".choice-button").forEach(b=>b.disabled=v)}
 function handleDecision(option){if(sim.finished)return;disableChoices(true);addMessage("right","player","あなた",option.label);
- if(sim.currentTurn<=13){
+ if(sim.currentTurn<=15){
   if(option.type==="ALT"){
    const t=resolveAlternativePort(option);sim.lastResult=null;
    addMessage("left","result","代替港情報",t,"広域港湾BCP");
@@ -468,15 +468,15 @@ ${LEVEL_MEANING[r.reportedLevel]}`,`被災レベル ${r.reportedLevel}「${LEVEL
    activateAlternativePortIfNeeded()
   }
  }
- else if(sim.currentTurn===14){const t=resolveRecovery(option);addMessage("left","result","復旧・代替結果",t);sim.history.push({turn:14,dec:"DEC14",label:option.label,result:{...sim.recovery}})}
- else{sim.finalPolicy=option.id;sim.history.push({turn:15,dec:"DEC15",label:option.label});choiceList.innerHTML="";finish();return}
+ else if(sim.currentTurn===16){const t=resolveRecovery(option);addMessage("left","result","復旧・代替結果",t);sim.history.push({turn:16,dec:"DEC14",label:option.label,result:{...sim.recovery}})}
+ else{sim.finalPolicy=option.id;sim.history.push({turn:17,dec:"DEC15",label:option.label});choiceList.innerHTML="";finish();return}
  sim.currentTurn++;setTimeout(()=>{if(!sim.finished)renderTurn()},250)
 }
 
 function eff(list){return list.map(d=>LEVEL_FUNCTION[sim.actual[d]]??0).reduce((a,b)=>a+b,0)/list.length}
-function timePenalty(){const T=Math.max(0,sim.elapsedSeconds-300);if(T<=15)return.2*T;if(T<=30)return 3+.3*(T-15);if(T<=60)return 7.5+.5*(T-30);return 22.5+.75*(Math.min(T,120)-60)}
+function timePenalty(){const T=Math.max(0,sim.elapsedSeconds-600);if(T<=15)return.2*T;if(T<=30)return 3+.3*(T-15);if(T<=60)return 7.5+.5*(T-30);return 22.5+.75*(Math.min(T,120)-60)}
 function riskPenalty(){let p=0,details=[];for(const[d,a]of Object.entries(sim.actual)){if(!["L2","L3","L4"].includes(a)||hasChecked(d))continue;const x=a==="L2"?2:a==="L3"?5:10;p+=x;details.push(`${DEC_META[d].name}：${a}「${LEVEL_LABEL[a]}」 — ${LEVEL_MEANING[a]}`)}return{penalty:Math.min(25,p),details}}
-function decisionScore(){const h=sim.history.filter(x=>x.turn<=13&&x.result);if(!h.length)return 0;let pts=0;for(const x of h){const a=x.result.actualLevel;pts+=a==="L4"?3:a==="L3"?2.5:a==="L2"?2:a==="L1"?1.2:.8}return Math.min(10,pts/(h.length*3)*10)}
+function decisionScore(){const h=sim.history.filter(x=>x.turn<=15&&x.result);if(!h.length)return 0;let pts=0;for(const x of h){const a=x.result.actualLevel;pts+=a==="L4"?3:a==="L3"?2.5:a==="L2"?2:a==="L1"?1.2:.8}return Math.min(10,pts/(h.length*3)*10)}
 function recoveryScore(){return!sim.recovery?0:sim.recovery.outcome==="GOOD"?10:sim.recovery.outcome==="PARTIAL"?7:3}
 function policyScore(){const sev=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),mod=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL")return sev?0:mod?2:5;if(sim.finalPolicy==="POLICY-CONDITIONAL")return sim.altPorts?.strategy?5:(sev?3:5);if(sim.finalPolicy==="POLICY-RELIEF")return sim.scenario==="EQTS"?5:3;if(sim.finalPolicy==="POLICY-ALTERNATIVE")return sim.altPorts?.strategy?5:sev?3:1;return 0}
 function infoScore(){let t=0,f=0;for(const[d,a]of Object.entries(sim.actual)){const s=a==="L4"?3:a==="L3"?2:a==="L2"?1:0;t+=s;if(s&&hasChecked(d))f+=s}const r=t?f/t*10:10;let c=5;c-=Math.min(3,Object.values(sim.known).filter(x=>x.stale).length+Object.values(sim.known).filter(x=>x.confidence==="C").length*.5);return{risk:r,conf:Math.max(0,c)}}
@@ -484,13 +484,13 @@ function metrics(){const sea=eff(["DEC04","DEC05","DEC13"]),berth=eff(["DEC03","
  const st=sim.altPorts?.strategy;if(st){const good=st.coordination==="ACCEPTED",center=st.mode==="CENTERED";rel+=good?(center?25:18):(center?17:12);reg+=good?(center?35:27):(center?25:18)}
  return{sea,berth,land,base,log,port:Math.round(port),relief:Math.round(Math.min(100,rel)),regional:Math.round(Math.min(100,reg))}}
 function grade(s){return s>=90?["S","極めて良好"]:s>=75?["A","主要機能を適切に確保"]:s>=60?["B","限定的な機能確保"]:s>=40?["C","重大なボトルネックが残存"]:["D","港湾機能継続に重大な課題"]}
-function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);const m=metrics(),func=15*m.sea/100+15*m.berth/100+10*m.land/100+10*m.base/100+10*m.log/100,inf=infoScore(),base=func+decisionScore()+recoveryScore()+policyScore()+inf.risk+inf.conf,risk=riskPenalty(),tp=timePenalty();let final=base-risk.penalty-tp;const l4=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),l3=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL"&&l4)final=Math.min(final,39);else if(sim.finalPolicy==="POLICY-NORMAL"&&l3)final=Math.min(final,59);if(sim.elapsedSeconds-300>120)final=Math.min(final,30);final=Math.max(0,Math.min(100,final));const[g,gt]=grade(final),ot=Math.max(0,sim.elapsedSeconds-300);
+function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);const m=metrics(),func=15*m.sea/100+15*m.berth/100+10*m.land/100+10*m.base/100+10*m.log/100,inf=infoScore(),base=func+decisionScore()+recoveryScore()+policyScore()+inf.risk+inf.conf,risk=riskPenalty(),tp=timePenalty();let final=base-risk.penalty-tp;const l4=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),l3=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL"&&l4)final=Math.min(final,39);else if(sim.finalPolicy==="POLICY-NORMAL"&&l3)final=Math.min(final,59);if(sim.elapsedSeconds-600>120)final=Math.min(final,30);final=Math.max(0,Math.min(100,final));const[g,gt]=grade(final),ot=Math.max(0,sim.elapsedSeconds-600);
  addMessage("left","score","SIMULATION COMPLETE",`${SCENARIOS[sim.scenario].label}\n完了時間　${formatClock(sim.elapsedSeconds)}\n超過時間　${ot?formatClock(-ot).replace("－",""):"00:00"}`);
  addMessage("left","score","最終評価",`BCP対応得点　${base.toFixed(1)}点\n重大リスク減点　－${risk.penalty.toFixed(1)}点\n時間超過減点　－${tp.toFixed(1)}点\n\n最終得点　${final.toFixed(1)}点\n判定　${g}　${gt}`);
  addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
  if(sim.altPorts?.activated){
   const A=sim.altPorts.ports.A,B=sim.altPorts.ports.B,st=sim.altPorts.strategy;
-  addMessage("left","score","代替港連携",`代替港A：${altCoordText(A.known.coordinated)}\n代替港B：${altCoordText(B.known.coordinated)}\nTURN14方針：${st?`${st.portName} ／ ${st.mode==="CENTERED"?"代替港中心":"自港との併用"}`:"正式な代替港方針なし"}`);
+  addMessage("left","score","代替港連携",`代替港A：${altCoordText(A.known.coordinated)}\n代替港B：${altCoordText(B.known.coordinated)}\nTURN16方針：${st?`${st.portName} ／ ${st.mode==="CENTERED"?"代替港中心":"自港との併用"}`:"正式な代替港方針なし"}`);
  }
  if(risk.details.length)addMessage("left","event danger","未確認リスク",risk.details.join("\n"));
  promptText.textContent="シミュレーションは終了しました";choiceList.style.display="none";restartButton.style.display="block";progressBar.style.width="100%";syncControlHeight()
