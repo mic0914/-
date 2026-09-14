@@ -671,7 +671,11 @@ function triggerEvent(e){
  addMessage("left","event","⚠ EVENT",msg);
  const escalation=evaluateEventEscalation(changed,e.name);
 
- if(sim.currentTurn>=2&&sim.currentTurn<=checkEndTurn()){sim.currentOptions=generateDynamicOptions();renderOptions(sim.currentOptions,true)}
+ if(sim.currentTurn>=2&&sim.currentTurn<=checkEndTurn()){
+  sim.choiceReview=null;
+  sim.currentOptions=generateDynamicOptions();
+  renderOptions(sim.currentOptions,true)
+ }
  else if(sim.currentTurn===recoveryTurn())renderOptions(recoveryOptions(),true)
 }
 
@@ -1095,6 +1099,7 @@ function shuffleChoices(arr){
  return a
 }
 function requiredChoiceRank(x){
+ if(x?.type==="REQUIRED_BATCH")return 5000;
  if(x?.mandatory)return 1000+(x.priority||0);
  if(x?.type==="SURGE")return 1900+(x.priority||0);
  if(x?.followUpKind==="POWER_CONTINUITY"||x?.followUpKind==="BERTH_RECOVERY_ALT"||x?.followUpKind==="ALT_BERTH_CHECK"||x?.followUpKind==="BERTH_RESOURCE_CHECK"||x?.followUpKind==="UTIL_CONDITION")return 1800+(x.priority||0);
@@ -1122,12 +1127,29 @@ function makeFallbackReviewChoices(existingLabels){
  }
  return out
 }
+function makeRequiredBatchOption(items){
+ return{
+  id:`REQUIRED-BATCH-${sim.currentTurn}-${Math.random().toString(36).slice(2,7)}`,
+  type:"REQUIRED_BATCH",dec:"BATCH",
+  label:`残る重要確認${items.length}項目を一括実施する`,
+  priority:2500,mandatory:true,batchItems:items
+ }
+}
+function compressRequiredChoices(required,maxSlots=12){
+ const req=uniqueByLabel(required);
+ if(req.length<=maxSlots)return req;
+ const direct=req.slice(0,Math.max(0,maxSlots-1));
+ const overflow=req.slice(Math.max(0,maxSlots-1));
+ return[...direct,makeRequiredBatchOption(overflow)]
+}
 function buildChoiceReview(initialOptions){
  const initial=uniqueByLabel(initialOptions||[]);
  const initialLabels=new Set(initial.map(x=>x.label));
  const dynamic=sim.currentTurn<=checkEndTurn()?dynamicCandidatePool():[];
- const required=uniqueByLabel(dynamic.filter(x=>requiredChoiceRank(x)>0).sort((a,b)=>requiredChoiceRank(b)-requiredChoiceRank(a))).filter(x=>!initialLabels.has(x.label));
- const regular=uniqueByLabel(dynamic.filter(x=>requiredChoiceRank(x)===0).sort((a,b)=>(b.priority||0)-(a.priority||0))).filter(x=>!initialLabels.has(x.label)&&!required.some(y=>y.label===x.label));
+ const requiredRaw=uniqueByLabel(dynamic.filter(x=>requiredChoiceRank(x)>0).sort((a,b)=>requiredChoiceRank(b)-requiredChoiceRank(a))).filter(x=>!initialLabels.has(x.label));
+ const required=compressRequiredChoices(requiredRaw,12);
+ const requiredUnderlying=new Set(requiredRaw.map(x=>x.label));
+ const regular=uniqueByLabel(dynamic.filter(x=>requiredChoiceRank(x)===0).sort((a,b)=>(b.priority||0)-(a.priority||0))).filter(x=>!initialLabels.has(x.label)&&!requiredUnderlying.has(x.label));
  const library=shuffleChoices(reviewLibraryOptions()).filter(x=>!initialLabels.has(x.label)&&!required.some(y=>y.label===x.label)&&!regular.some(y=>y.label===x.label));
  const existing=new Set([...initialLabels,...required.map(x=>x.label),...regular.map(x=>x.label),...library.map(x=>x.label)]);
  const fallback=makeFallbackReviewChoices(existing);
@@ -1455,10 +1477,53 @@ ${center?"主要貨物・船舶を代替港中心へ切り替えます。":"自�
  }
  return resultText
 }
+function resolveRequiredBatch(option){
+ const lines=[];
+ for(const item of option.batchItems||[]){
+  if(item.type==="ALT"){
+   resolveAlternativePort(item);lines.push(item.label+"：確認済み")
+  }else if(item.type==="SURGE"){
+   resolveSurgeOption(item);lines.push(item.label+"：対応済み")
+  }else if(item.type==="INUNDATION"){
+   resolveInundationOption(item);lines.push(item.label+"：確認済み")
+  }else if(item.followUpKind==="BERTH_RECOVERY_ALT"){
+   startBerthParallelResponse();lines.push(item.label+"：対応開始")
+  }else if(item.followUpKind==="ALT_BERTH_CHECK"){
+   resolveAltBerthCheck();sim.berthRequired.altBerth=false;lines.push(item.label+"：確認済み")
+  }else if(item.followUpKind==="BERTH_RESOURCE_CHECK"){
+   Object.assign(sim.known.DEC10,{level:sim.actual.DEC10,confidence:"A",confirmed:true,lastCheckedTurn:sim.currentTurn,stale:false});
+   sim.berthRequired.resource=false;lines.push(item.label+"：確認済み")
+  }else if(item.followUpKind==="UTIL_CONDITION"){
+   resolveUtilizationCondition(item.utilizationDec||item.dec);lines.push(item.label+"：確認済み")
+  }else{
+   if(item.followUpKey){
+    sim.completedFollowUps.add(item.followUpKey);
+    if(item.followUpSource&&item.dec){
+     sim.completedRelations.add(relationKey(item.followUpSource,item.dec));
+     sim.completedRelations.add(relationKey(item.dec,item.followUpSource))
+    }
+   }
+   if(item.relationKey){
+    sim.completedRelations.add(item.relationKey);
+    if(item.relationSource&&item.dec)sim.completedRelations.add(relationKey(item.dec,item.relationSource))
+   }
+   if(item.type==="RECHECK")invalidateDecisionPaths(item.dec);
+   const r=inspect(item);updateKnown(r);
+   sim.history.push({turn:sim.currentTurn,dec:item.dec,label:item.label,result:{...r},batched:true});
+   lines.push(item.label+"：確認済み")
+  }
+ }
+ activateAlternativePortIfNeeded();
+ return lines.join("\n")
+}
 function disableChoices(v){choiceList.querySelectorAll(".choice-button").forEach(b=>b.disabled=v);reconsiderButton.disabled=v}
 function handleDecision(option){if(sim.finished)return;const snap=knownSnapshot();evaluateMajorMistake(option,snap);disableChoices(true);addMessage("right","player","あなた",option.label);
  if(sim.currentTurn<=checkEndTurn()){
-  if(option.type==="ALT"){
+  if(option.type==="REQUIRED_BATCH"){
+   const t=resolveRequiredBatch(option);sim.lastResult=null;
+   addMessage("left","result","重要確認一括対応",t,"重要確認を一括実施");
+   sim.history.push({turn:sim.currentTurn,dec:"BATCH",label:option.label,special:"REQUIRED_BATCH",items:(option.batchItems||[]).map(x=>x.label)})
+  }else if(option.type==="ALT"){
    const t=resolveAlternativePort(option);sim.lastResult=null;
    addMessage("left","result","代替港情報",t,"広域港湾BCP");
    sim.history.push({turn:sim.currentTurn,dec:"ALT",label:option.label,altResult:true,portKey:option.portKey||null})
@@ -1775,7 +1840,7 @@ function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);co
  addMessage("left","score","最終評価",`対応力点数　${base.toFixed(1)}点\n未確認重大リスク　－${risk.penalty.toFixed(1)}点\n重大判断ミス　－${mistakes.penalty.toFixed(1)}点（${mistakes.count}件）\n代替港対応評価　${altEval.applicable?`${altEval.score.toFixed(1)} / 10点`:(altEval.reason||"対象外")}\n時間超過減点　－${tp.toFixed(1)}点\n不足対応コメント　${gaps.length}件\n\n最終得点　${final.toFixed(1)}点\n判定　${g}　${gt}\n\n※ 代替港対応評価は復旧・最終方針の評価内容にも反映されています。`);
  addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
  const gapText=gaps.length?gaps.map((x,i)=>`${i+1}. ${x}`).join("\n"):"今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。";
- addMessage("left","score","不足していた対応",gapText+"\n\n※ 必要な重要対応は、通常4択＋再検討3回の最大16候補内に提示されます。この欄は実際に提示された対応のみを対象とし、ここで追加の減点は行いません。");
+ addMessage("left","score","不足していた対応",gapText+"\n\n※ その時点で必要な重要対応は、通常4択＋再検討3回の最大16候補内（多数時は一括確認を含む）に提示されます。追加EVENTで状況が変化した場合は新しい判断局面として再構成します。この欄は実際に提示された対応のみを対象とし、ここで追加の減点は行いません。");
  if(sim.altPorts?.activated&&altEval.details?.length)addMessage("left","score","代替港対応評価 内訳",altEval.details.join("\n"));
  if(mistakes.details.length)addMessage("left","event danger","重大判断ミス",mistakes.details.join("\n"));
  if(risk.details.length)addMessage("left","event danger","未確認重大リスク",risk.details.join("\n"));
