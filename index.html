@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.23</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.24</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.23</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.24</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -509,7 +509,7 @@ function activateAlternativePortIfNeeded(){
 function beginScenario(code){
  if(timerHandle)clearInterval(timerHandle);
  const severity=randomSeverity();
- sim.scenario=code;sim.severity=severity;sim.responseLevel=initialResponseLevel(severity);sim.maxTurns=responseTurns(sim.responseLevel);sim.surge=null;sim.currentTurn=1;sim.elapsedSeconds=0;sim.remainingSeconds=600;sim.actual=createActual(code,severity);sim.known=initKnown();sim.history=[];sim.events=[];sim.lastResult=null;sim.pendingCritical=[];sim.powerContinuity={checked:false,revision:0,checkedRevision:-1};sim.inundation=createInundationState(severity);sim.altBerth=createAltBerth(severity);sim.berthParallel=null;sim.lastEventAt=-999;sim.eventBoosts={};sim.recovery=null;sim.finalPolicy=null;sim.altPorts=createAltPorts(code,severity);sim.majorMistakes=[];sim.utilizationConditions={};sim.cargoPriority={completed:false,revision:0,completedRevision:-1};sim.choiceReview=null;sim.offeredOpportunities=new Set();sim.berthRequired={altBerth:false,altSurvey:false,resource:false};sim.completedFollowUps=new Set();sim.completedRelations=new Set();sim.finished=false;sim.currentOptions=[];sim.warning60=false;sim.overtime=false;
+ sim.scenario=code;sim.severity=severity;sim.responseLevel=initialResponseLevel(severity);sim.maxTurns=responseTurns(sim.responseLevel);sim.surge=null;sim.currentTurn=1;sim.elapsedSeconds=0;sim.remainingSeconds=600;sim.actual=createActual(code,severity);sim.known=initKnown();sim.history=[];sim.events=[];sim.lastResult=null;sim.pendingCritical=[];sim.powerContinuity={checked:false,revision:0,checkedRevision:-1};sim.inundation=createInundationState(severity);sim.altBerth=createAltBerth(severity);sim.berthParallel=null;sim.lastEventAt=-999;sim.eventBoosts={};sim.recovery=null;sim.finalPolicy=null;sim.altPorts=createAltPorts(code,severity);sim.majorMistakes=[];sim.utilizationConditions={};sim.cargoPriority={completed:false,revision:0,completedRevision:-1};sim.choiceReview=null;sim.offeredOpportunities=new Set();sim.opportunityPhases=new Map();sim.berthRequired={altBerth:false,altSurvey:false,resource:false};sim.completedFollowUps=new Set();sim.completedRelations=new Set();sim.finished=false;sim.currentOptions=[];sim.warning60=false;sim.overtime=false;
  startScreen.style.display="none";chat.style.display="block";controlWrap.style.display="block";restartButton.style.display="none";reconsiderButton.style.display="none";choiceList.style.display="grid";chat.innerHTML="";
  updateScenarioStatus();
  addMessage("left","system","災害対策本部",randomScenarioIntro(code,severity),"初期情報 ／ 情報確度 C");
@@ -1269,11 +1269,19 @@ function opportunityKeysForOption(x){
 }
 function registerOfferedOptions(options){
  if(!sim.offeredOpportunities)sim.offeredOpportunities=new Set();
+ if(!sim.opportunityPhases)sim.opportunityPhases=new Map();
+ const registerKey=k=>{
+  sim.offeredOpportunities.add(k);
+  if(!sim.opportunityPhases.has(k))sim.opportunityPhases.set(k,sim.currentTurn)
+ };
  for(const x of options||[]){
-  for(const k of opportunityKeysForOption(x))sim.offeredOpportunities.add(k);
-  if(x?.type==="REQUIRED_BATCH")for(const item of x.batchItems||[])for(const k of opportunityKeysForOption(item))sim.offeredOpportunities.add(k)
+  for(const k of opportunityKeysForOption(x))registerKey(k);
+  if(x?.type==="REQUIRED_BATCH")for(const item of x.batchItems||[])for(const k of opportunityKeysForOption(item))registerKey(k)
  }
 }
+function opportunityPhase(key){return sim.opportunityPhases?.get(gapOpportunityKey(key))??null}
+function phaseLabel(turn=sim.currentTurn){return `Phase ${turn}`}
+function phaseGapText(key,text){const p=opportunityPhase(key);return p?`${phaseLabel(p)}で、${text}`:text}
 function gapOpportunityKey(key){
  const aliases={
   ROUTE_BERTH:"BERTH_PARALLEL",
@@ -1571,39 +1579,39 @@ function handleDecision(option){if(sim.finished)return;const snap=knownSnapshot(
  if(sim.currentTurn<=checkEndTurn()){
   if(option.type==="REQUIRED_BATCH"){
    const t=resolveRequiredBatch(option);sim.lastResult=null;
-   addMessage("left","result","重要確認一括対応",t,"重要確認を一括実施");
+   addMessage("left","result",phaseLabel(),t,"重要確認を一括実施");
    sim.history.push({turn:sim.currentTurn,dec:"BATCH",label:option.label,special:"REQUIRED_BATCH",items:(option.batchItems||[]).map(x=>x.label)})
   }else if(option.type==="ALT"){
    const t=resolveAlternativePort(option);sim.lastResult=null;
-   addMessage("left","result","代替港情報",t,"広域港湾BCP");
+   addMessage("left","result",phaseLabel(),t,"広域港湾BCP");
    sim.history.push({turn:sim.currentTurn,dec:"ALT",label:option.label,altResult:true,portKey:option.portKey||null})
   }else if(option.type==="SURGE"){
    const t=resolveSurgeOption(option);sim.lastResult=null;
-   addMessage("left","result","被害拡大対応",t,"後半一括対応");
+   addMessage("left","result",phaseLabel(),t,"後半一括対応");
    sim.history.push({turn:sim.currentTurn,dec:"SURGE",label:option.label,special:option.followUpKind})
   }else if(option.followUpKind==="BERTH_RECOVERY_ALT"){
    const t=startBerthParallelResponse();sim.lastResult=null;
-   addMessage("left","result","岸壁対応",t,"応急復旧＋代替施設");
+   addMessage("left","result",phaseLabel(),t,"応急復旧＋代替施設");
    sim.history.push({turn:sim.currentTurn,dec:"DEC03",label:option.label,special:"BERTH_RECOVERY_ALT"})
   }else if(option.followUpKind==="ALT_BERTH_CHECK"){
    const t=resolveAltBerthCheck();sim.lastResult=null;sim.berthRequired.altBerth=false;
-   addMessage("left","result","代替岸壁情報",t,`代替岸壁：${localAltBerthText(sim.altBerth.actual)}`);
+   addMessage("left","result",phaseLabel(),t,`代替岸壁：${localAltBerthText(sim.altBerth.actual)}`);
    sim.history.push({turn:sim.currentTurn,dec:"DEC03",label:option.label,special:"ALT_BERTH_CHECK",altBerth:sim.altBerth.actual})
   }else if(option.followUpKind==="BERTH_RESOURCE_CHECK"){
    Object.assign(sim.known.DEC10,{level:sim.actual.DEC10,confidence:"A",confirmed:true,lastCheckedTurn:sim.currentTurn,stale:false});sim.lastResult=null;sim.berthRequired.resource=false;
-   addMessage("left","result","復旧資源確認",`作業船・重機・資材等の復旧資源を確認しました。\n復旧資源：${sim.actual.DEC10}「${LEVEL_LABEL[sim.actual.DEC10]}」`,"復旧資源確認済み");
+   addMessage("left","result",phaseLabel(),`作業船・重機・資材等の復旧資源を確認しました。\n復旧資源：${sim.actual.DEC10}「${LEVEL_LABEL[sim.actual.DEC10]}」`,"復旧資源確認済み");
    sim.history.push({turn:sim.currentTurn,dec:"DEC10",label:option.label,special:"BERTH_RESOURCE_CHECK"})
   }else if(option.followUpKind==="CARGO_FUNCTION_PRIORITY"){
    const t=resolveCargoPriority();sim.lastResult=null;
-   addMessage("left","result","優先順位設定",t,"優先順位設定済み");
+   addMessage("left","result",phaseLabel(),t,"優先順位設定済み");
    sim.history.push({turn:sim.currentTurn,dec:"DEC12",label:option.label,special:"CARGO_FUNCTION_PRIORITY"})
   }else if(option.followUpKind==="UTIL_CONDITION"){
    const dec=option.utilizationDec||option.dec,t=resolveUtilizationCondition(dec);sim.lastResult=null;
-   addMessage("left","result","利用条件確認",t,"利用条件確認済み");
+   addMessage("left","result",phaseLabel(),t,"利用条件確認済み");
    sim.history.push({turn:sim.currentTurn,dec,label:option.label,special:"UTIL_CONDITION"})
   }else if(option.type==="INUNDATION"){
    const t=resolveInundationOption(option);sim.lastResult=null;
-   addMessage("left","result","浸水対応",t,"高潮・浸水対応");
+   addMessage("left","result",phaseLabel(),t,"高潮・浸水対応");
    sim.history.push({turn:sim.currentTurn,dec:"DEC06",label:option.label,special:option.followUpKind})
   }else{
    if(option.followUpKey){
@@ -1620,14 +1628,14 @@ function handleDecision(option){if(sim.finished)return;const snap=knownSnapshot(
    if(option.type==="RECHECK")invalidateDecisionPaths(option.dec);
    const r=inspect(option);updateKnown(r);sim.lastResult=r;
    if(r.followUpKind==="POWER_CONTINUITY")removePendingCritical("POWER_CONTINUITY");
-   addMessage("left","result","調査結果",r.text+`
+   addMessage("left","result",phaseLabel(),r.text+`
 
 ${LEVEL_MEANING[r.reportedLevel]}`,`被災レベル ${r.reportedLevel}「${LEVEL_LABEL[r.reportedLevel]}」 ／ 情報確度 ${r.confidence}`);
    sim.history.push({turn:sim.currentTurn,dec:option.dec,label:option.label,result:{...r}});
    activateAlternativePortIfNeeded()
   }
  }
- else if(sim.currentTurn===recoveryTurn()){const t=resolveRecovery(option);addMessage("left","result","復旧・代替結果",t);sim.history.push({turn:recoveryTurn(),dec:"DEC14",label:option.label,result:{...sim.recovery}})}
+ else if(sim.currentTurn===recoveryTurn()){const t=resolveRecovery(option);addMessage("left","result",phaseLabel(),t);sim.history.push({turn:recoveryTurn(),dec:"DEC14",label:option.label,result:{...sim.recovery}})}
  else{sim.finalPolicy=option.id;sim.history.push({turn:finalTurn(),dec:"DEC15",label:option.label});choiceList.innerHTML="";finish();return}
  sim.currentTurn++;setTimeout(()=>{if(!sim.finished)renderTurn()},250)
 }
@@ -1853,7 +1861,7 @@ function routeGapComments(add){
 }
 function responseGapComments(){
  const c=[];
- const add=(priority,key,text)=>{if(!opportunityWasOffered(key))return;if(!c.some(x=>x.key===key))c.push({priority,key,text})};
+ const add=(priority,key,text)=>{if(!opportunityWasOffered(key))return;if(!c.some(x=>x.key===key))c.push({priority,key,text:phaseGapText(key,text)})};
  const severe=d=>atLeast(sim.actual[d],"L3");
  const verySevere=d=>sim.actual[d]==="L4";
  const recoveryId=sim.recovery?.optionId||"";
@@ -1932,14 +1940,14 @@ function responseGapComments(){
  }
  if(l2Needs.length){
   const text=`L2「中程度」を確認した${l2Needs.join("、")}で、利用可能範囲・利用条件の確認が不足していました。`;
-  if(!c.some(x=>x.key==="L2_UTILIZATION"))c.push({priority:83,key:"L2_UTILIZATION",text})
+  if(!c.some(x=>x.key==="L2_UTILIZATION")){const phases=l2Needs.map(name=>{const dec=Object.keys(DEC_META).find(d=>DEC_META[d].name===name);return dec?opportunityPhase("L2_UTILIZATION:"+dec):null}).filter(x=>x!=null);const p=phases.length?Math.min(...phases):null;c.push({priority:83,key:"L2_UTILIZATION",text:p?`${phaseLabel(p)}で、${text}`:text})}
  }
 
  // 情報更新
  const staleCritical=Object.entries(sim.known).filter(([d,k])=>["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"].includes(d)&&k.stale&&atLeast(sim.actual[d],"L2")&&opportunityWasOffered("STALE:"+d));
  if(staleCritical.length){
   const text="追加EVENT後に状況が変化した重要機能について、再確認が不足していました。";
-  if(!c.some(x=>x.key==="STALE"))c.push({priority:88,key:"STALE",text})
+  if(!c.some(x=>x.key==="STALE")){const phases=staleCritical.map(([d])=>opportunityPhase("STALE:"+d)).filter(x=>x!=null);const p=phases.length?Math.min(...phases):null;c.push({priority:88,key:"STALE",text:p?`${phaseLabel(p)}で、${text}`:text})}
  }
 
  routeGapComments(add);
@@ -1953,7 +1961,7 @@ function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);co
  addMessage("left","score","最終評価",`対応力点数　${base.toFixed(1)}点\n内訳：基礎対応 ${core.total.toFixed(1)}/60・判断経路 ${route.toFixed(1)}/10・復旧/代替 ${rec.toFixed(1)}/10・最終方針 ${policy.toFixed(1)}/5・情報把握 ${(inf.risk+inf.conf).toFixed(1)}/15\n未確認重大リスク　－${risk.penalty.toFixed(1)}点\n重大判断ミス　－${mistakes.penalty.toFixed(1)}点（${mistakes.count}件）\n代替港対応評価　${altEval.applicable?`${altEval.score.toFixed(1)} / 10点`:(altEval.reason||"対象外")}\n時間超過減点　－${tp.toFixed(1)}点\n不足対応コメント　${gaps.length}件\n\n最終得点　${final.toFixed(1)}点\n判定　${g}　${gt}\n\n※ 代替港対応評価は復旧・最終方針の評価内容にも反映されています。`);
  addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
  const gapText=gaps.length?gaps.map((x,i)=>`${i+1}. ${x}`).join("\n"):"今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。";
- addMessage("left","score","不足していた対応",gapText+"\n\n※ その時点で必要な重要対応は、通常4択＋再検討3回の最大16候補内（多数時は一括確認を含む）に提示されます。追加EVENTで状況が変化した場合は新しい判断局面として再構成します。この欄は実際に提示された対応のみを対象とし、ここで追加の減点は行いません。");
+ addMessage("left","score","不足していた対応",gapText+"\n\n※ Phase番号は、その対応候補が実際に提示された選択段階を示します。\n※ その時点で必要な重要対応は、通常4択＋再検討3回の最大16候補内（多数時は一括確認を含む）に提示されます。追加EVENTで状況が変化した場合は新しい判断局面として再構成します。この欄は実際に提示された対応のみを対象とし、ここで追加の減点は行いません。");
  if(mistakes.details.length)addMessage("left","event danger","重大判断ミス",mistakes.details.join("\n"));
  if(risk.details.length)addMessage("left","event danger","未確認重大リスク",risk.details.join("\n"));
  addMessage("left","system","結果の留意事項","本結果は訓練上の参考であり、唯一・絶対の正解を示すものではありません。実災害では、現地状況と最新情報を踏まえて判断してください。");
@@ -1968,7 +1976,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.23 -->
-<!-- deploy-build: Ver.3.23 -->
+<!-- deploy: Ver.3.24 -->
+<!-- deploy-build: Ver.3.24 -->
 </body>
 </html>
