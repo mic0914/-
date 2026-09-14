@@ -544,7 +544,8 @@ function criticalFollowUps(){
 }
 function knownRisks(){const o=[];for(const[d,k]of Object.entries(sim.known)){if(k.level==="UNKNOWN")continue;const b=k.level==="L4"?40:k.level==="L3"?35:k.level==="L2"?25:0;if(!b)continue;for(const r of RELATIONS[d]||[]){const x=opt(r);x.priority+=b;o.push(x)}}return o}
 function unconfirmed(){const o=[];for(const d of Object.keys(DEC_META))if(!hasChecked(d)){const x=opt(d);x.priority+=20+(SCENARIOS[sim.scenario].importance[d]||0);o.push(x)}return o}
-function recheckLabel(dec){return DEC_META[dec].baseLabel.replace(/確認する$/,"再確認する")}\nfunction eventOpts(){const o=[];for(const[d,b]of Object.entries(sim.eventBoosts)){if(!b)continue;if(d==="DEC08"&&hasPendingCritical("POWER_CONTINUITY"))continue;const r=hasChecked(d),x=opt(d,r?"RECHECK":"CHECK",r?recheckLabel(d):DEC_META[d].baseLabel);x.priority+=30+b;o.push(x)}return o}
+function recheckLabel(dec){return DEC_META[dec].baseLabel.replace(/確認する$/,"再確認する")}
+function eventOpts(){const o=[];for(const[d,b]of Object.entries(sim.eventBoosts)){if(!b)continue;if(d==="DEC08"&&hasPendingCritical("POWER_CONTINUITY"))continue;const r=hasChecked(d),x=opt(d,r?"RECHECK":"CHECK",r?recheckLabel(d):DEC_META[d].baseLabel);x.priority+=30+b;o.push(x)}return o}
 function rechecks(){const o=[];for(const[d,k]of Object.entries(sim.known))if(k.level!=="UNKNOWN"&&(k.stale||k.confidence==="C")){if(d==="DEC08"&&hasPendingCritical("POWER_CONTINUITY"))continue;const x=opt(d,"RECHECK",recheckLabel(d));x.priority+=20+(k.stale?10:0);o.push(x)}return o}
 
 function altOption(id,label,priority,portKey=null){return{id,type:"ALT",dec:"ALT",label,priority,portKey}}
@@ -711,7 +712,8 @@ function inspect(option){
   }else{
    text="非常用電源の継続供給と通信手段の確保が困難です。港湾運営に必要な電力・通信機能の早期復旧は困難です。外部支援を前提とした復旧・運用判断が必要です。"
   }
-  sim.powerContinuity.checked=true;sim.powerContinuity.checkedRevision=sim.powerContinuity.revision;\n  return{dec:option.dec,actualLevel:actual,reportedLevel:actual,confidence:"A",text,followUpKind:"POWER_CONTINUITY"}
+  sim.powerContinuity.checked=true;sim.powerContinuity.checkedRevision=sim.powerContinuity.revision;
+  return{dec:option.dec,actualLevel:actual,reportedLevel:actual,confidence:"A",text,followUpKind:"POWER_CONTINUITY"}
  }
  text=scenarioResult(option.dec,reported);
  if(option.dec==="DEC08"&&atLeast(reported,"L2")&&powerContinuityNeedsCheck()){
