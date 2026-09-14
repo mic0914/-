@@ -1256,13 +1256,15 @@ function responseGapComments(){
 
  c.sort((a,b)=>b.priority-a.priority);
  const limited=c.slice(0,6);
- if(!limited.length)return["今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。"];
+ if(!limited.length)return[];
  return limited.map(x=>x.text)
 }
 function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);const m=metrics(),func=15*m.sea/100+15*m.berth/100+10*m.land/100+10*m.base/100+10*m.log/100,inf=infoScore(),base=func+decisionScore()+recoveryScore()+policyScore()+inf.risk+inf.conf,risk=riskPenalty(),mistakes=majorMistakeResult(),altEval=alternativePortScore(),gaps=responseGapComments(),tp=timePenalty();let final=base-risk.penalty-mistakes.penalty-tp;const l4=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),l3=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL"&&l4)final=Math.min(final,39);else if(sim.finalPolicy==="POLICY-NORMAL"&&l3)final=Math.min(final,59);if(sim.elapsedSeconds-600>120)final=Math.min(final,30);final=Math.max(0,Math.min(100,final));const[g,gt]=grade(final),ot=Math.max(0,sim.elapsedSeconds-600);
  addMessage("left","score","SIMULATION COMPLETE",`${SCENARIOS[sim.scenario].label}\n発災規模　${SEVERITY_PROFILES[sim.severity].label}\n最終対応規模　${responseStatusText()}（最大${sim.maxTurns}TURN）\n完了時間　${formatClock(sim.elapsedSeconds)}\n超過時間　${ot?formatClock(-ot).replace("－",""):"00:00"}`);
  addMessage("left","score","最終評価",`対応力点数　${base.toFixed(1)}点\n未確認重大リスク　－${risk.penalty.toFixed(1)}点\n重大判断ミス　－${mistakes.penalty.toFixed(1)}点（${mistakes.count}件）\n代替港対応評価　${altEval.applicable?`${altEval.score.toFixed(1)} / 10点`:(altEval.reason||"対象外")}\n時間超過減点　－${tp.toFixed(1)}点\n不足対応コメント　${gaps.length}件\n\n最終得点　${final.toFixed(1)}点\n判定　${g}　${gt}\n\n※ 代替港対応評価は復旧・最終方針の評価内容にも反映されています。`);
- addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);\n addMessage("left","score","不足していた対応",gaps.map((x,i)=>`${i+1}. ${x}`).join("\\n")+"\\n\\n※ この欄は振り返り用コメントであり、ここで追加の減点は行いません。");
+ addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
+ const gapText=gaps.length?gaps.map((x,i)=>`${i+1}. ${x}`).join("\n"):"今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。";
+ addMessage("left","score","不足していた対応",gapText+"\n\n※ この欄は振り返り用コメントであり、ここで追加の減点は行いません。");
  if(sim.altPorts?.activated){
   const A=sim.altPorts.ports.A,B=sim.altPorts.ports.B,st=sim.altPorts.strategy;
   addMessage("left","score","代替港連携",`代替港A：${altCoordText(A.known.coordinated)}\n代替港B：${altCoordText(B.known.coordinated)}\nTURN${String(recoveryTurn()).padStart(2,"0")}方針：${st?`${st.portName} ／ ${st.mode==="CENTERED"?"代替港中心":"自港との併用"}`:"正式な代替港方針なし"}`);
