@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.4</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.5</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -40,7 +40,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.4</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.5</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -353,7 +353,7 @@ function altPortDistributions(severity,storm){
 function createAltPorts(sc,severity){
  const storm=sc!=="EQTS",dist=altPortDistributions(severity,storm);
  return{
-  activated:false,triggerReason:null,activatedTurn:null,stage:0,strategy:null,severity,
+  activated:false,triggerReason:null,triggerReasons:[],activatedTurn:null,stage:0,surveyOfferedTurn:null,surveyCompleted:false,surveyMissed:false,strategy:null,severity,
   ports:{
    A:{
     name:"代替港A",distance:"近距離",
@@ -395,9 +395,13 @@ function altTriggerState(){
  return{trigger:false,reason:null}
 }
 function activateAlternativePortIfNeeded(){
- if(!sim.altPorts||sim.altPorts.activated)return false;
+ if(!sim.altPorts)return false;
  const t=altTriggerState();if(!t.trigger)return false;
- sim.altPorts.activated=true;sim.altPorts.triggerReason=t.reason;sim.altPorts.activatedTurn=sim.currentTurn;
+ if(sim.altPorts.activated){
+  if(t.reason&&!sim.altPorts.triggerReasons.includes(t.reason))sim.altPorts.triggerReasons.push(t.reason);
+  return false
+ }
+ sim.altPorts.activated=true;sim.altPorts.triggerReason=t.reason;sim.altPorts.triggerReasons=[t.reason];sim.altPorts.activatedTurn=sim.currentTurn;
  addMessage("left","system","広域調整","自港の重大な機能低下が確認されました。\n自港復旧と並行して、代替港の受入可能性を確認できます。","代替港検討開始");
  return true
 }
@@ -562,9 +566,7 @@ function triggerEvent(e){
  refreshDerivedActual(changed);
  addMessage("left","event","⚠ EVENT",msg);
  const escalation=evaluateEventEscalation(changed,e.name);
- if(escalation){
-  addMessage("left","system","対応フェーズ更新",`追加EVENTによる被害拡大を受け、対応規模を${RESPONSE_LEVELS[escalation.to].label}へ引き上げました。\n最大TURNを${escalation.oldMax}から${escalation.newMax}へ延長します。\n一度延長した対応フェーズは、その後状況が改善しても短縮しません。`);
- }
+
  if(sim.currentTurn>=2&&sim.currentTurn<=checkEndTurn()){sim.currentOptions=generateDynamicOptions();renderOptions(sim.currentOptions,true)}
  else if(sim.currentTurn===recoveryTurn())renderOptions(recoveryOptions(),true)
 }
@@ -639,7 +641,7 @@ function summarizeCompressedDamage(list){
 }
 function coordinateAltPortCompressed(){
  const a=sim.altPorts;if(!a?.activated)return"代替港検討の発動条件には至っていません。";
- a.stage=Math.max(a.stage,3);
+ a.stage=Math.max(a.stage,3);a.surveyCompleted=true;a.surveyMissed=false;
  const lines=[];
  for(const key of["A","B"]){
   const p=a.ports[key],k=p.known;
@@ -667,7 +669,7 @@ function resolveSurgeOption(option){
   activateAlternativePortIfNeeded();
   let altText="代替港検討条件には至っていません。";
   if(sim.altPorts?.activated){
-   sim.altPorts.stage=Math.max(sim.altPorts.stage,1);
+   sim.altPorts.stage=Math.max(sim.altPorts.stage,1);sim.altPorts.surveyCompleted=true;sim.altPorts.surveyMissed=false;
    for(const p of Object.values(sim.altPorts.ports))p.known.summary=true;
    const A=sim.altPorts.ports.A,B=sim.altPorts.ports.B;
    altText=`${A.name}：岸壁 ${altBerthText(A.actual.berth)} ／ 混雑度 ${altCongestionText(A.actual.congestion)}\n${B.name}：岸壁 ${altBerthText(B.actual.berth)} ／ 混雑度 ${altCongestionText(B.actual.congestion)}`
@@ -780,7 +782,15 @@ function resolveInundationOption(option){
 function alternativePortCandidates(){
  const a=sim.altPorts;if(!a?.activated)return[];
  const o=[];
- if(a.stage===0){const x=altOption("ALT-SURVEY","代替港の受入可否を確認する",995);x.mandatory=true;x.followUpKind="ALT_SURVEY";o.push(x);return o}
+ if(a.stage===0&&!a.surveyCompleted){
+  if(a.surveyOfferedTurn===null)a.surveyOfferedTurn=sim.currentTurn;
+  if(a.surveyOfferedTurn===sim.currentTurn){
+   const x=altOption("ALT-SURVEY","代替港の受入可否を確認する",995);x.mandatory=true;x.followUpKind="ALT_SURVEY";o.push(x)
+  }else{
+   a.surveyMissed=true
+  }
+  return o
+ }
  for(const key of["A","B"]){
   const p=a.ports[key],k=p.known;
   if(!k.detail)o.push(altOption(`ALT-DETAIL-${key}`,`${p.name}の空き岸壁・荷役余力を確認する`,80,key));
@@ -795,7 +805,7 @@ function alternativePortCandidates(){
 function resolveAlternativePort(option){
  const a=sim.altPorts;
  if(option.id==="ALT-SURVEY"){
-  a.stage=Math.max(a.stage,1);
+  a.stage=Math.max(a.stage,1);a.surveyCompleted=true;a.surveyMissed=false;
   for(const p of Object.values(a.ports))p.known.summary=true;
   const A=a.ports.A,B=a.ports.B;
   return `広域調整窓口から一次回答が入りました。\n\n${A.name}（${A.distance}）\n・岸壁：${altBerthText(A.actual.berth)}\n・混雑度：${altCongestionText(A.actual.congestion)}\n\n${B.name}（${B.distance}）\n・岸壁：${altBerthText(B.actual.berth)}\n・混雑度：${altCongestionText(B.actual.congestion)}\n\n荷役余力・背後交通・船舶受入条件は追加確認が必要です。`
@@ -910,9 +920,14 @@ function confidence(type){const r=Math.random();return(type==="FOLLOW_UP"||type=
 function underReport(actual,c){if(c!=="C"||actual==="L0")return actual;return Math.random()<.55?clampLevel(LEVEL_VALUE[actual]-1):actual}
 function scenarioResult(dec,l){return SCENARIO_RESULT_TEXT[sim.scenario]?.[dec]?.[l]||GENERIC_RESULTS[dec][l]}
 function activateAlternativePortForBerthResponse(){
- if(!sim.altPorts||sim.altPorts.activated)return;
+ if(!sim.altPorts)return;
+ const reason="岸壁L3/L4への応急復旧と代替施設検討を並行開始";
+ if(sim.altPorts.activated){
+  if(!sim.altPorts.triggerReasons.includes(reason))sim.altPorts.triggerReasons.push(reason);
+  return
+ }
  sim.altPorts.activated=true;
- sim.altPorts.triggerReason="岸壁L3/L4への応急復旧と代替施設検討を並行開始";
+ sim.altPorts.triggerReason=reason;sim.altPorts.triggerReasons=[reason];
  sim.altPorts.activatedTurn=sim.currentTurn;
  addMessage("left","system","広域調整","岸壁の重大被害に対応するため、自港の応急復旧と並行して代替港A・Bの受入可能性確認を開始します。","代替施設検討開始")
 }
@@ -1115,6 +1130,7 @@ function alternativePortScore(){
  const a=sim.altPorts;
  if(!a?.activated)return{applicable:false,score:null,reason:"対象外",details:["代替港検討条件に該当しませんでした。"]};
  const ports=Object.values(a.ports);
+ if(a.surveyMissed&&!a.surveyCompleted)return{applicable:true,score:0,reason:"初回提示時に受入可否確認を選択せず",details:["代替港の受入可否確認は初回提示時に選択されず、その後は同じ入口選択肢を再提示していません。"]};
  let raw=0,details=[];
  if(a.stage>=1){raw+=2;details.push("受入可否の一次確認：2/2")}else details.push("受入可否の一次確認：0/2");
  const detailed=ports.some(p=>p.known.detail);
