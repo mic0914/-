@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.20</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.21</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.20</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.21</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -1841,7 +1841,6 @@ function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);co
  addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
  const gapText=gaps.length?gaps.map((x,i)=>`${i+1}. ${x}`).join("\n"):"今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。";
  addMessage("left","score","不足していた対応",gapText+"\n\n※ その時点で必要な重要対応は、通常4択＋再検討3回の最大16候補内（多数時は一括確認を含む）に提示されます。追加EVENTで状況が変化した場合は新しい判断局面として再構成します。この欄は実際に提示された対応のみを対象とし、ここで追加の減点は行いません。");
- if(sim.altPorts?.activated&&altEval.details?.length)addMessage("left","score","代替港対応評価 内訳",altEval.details.join("\n"));
  if(mistakes.details.length)addMessage("left","event danger","重大判断ミス",mistakes.details.join("\n"));
  if(risk.details.length)addMessage("left","event danger","未確認重大リスク",risk.details.join("\n"));
  addMessage("left","system","結果の留意事項","本結果は訓練上の参考であり、唯一・絶対の正解を示すものではありません。実災害では、現地状況と最新情報を踏まえて判断してください。");
@@ -1856,7 +1855,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.20 -->
-<!-- deploy-build: Ver.3.20 -->
+<!-- deploy: Ver.3.21 -->
+<!-- deploy-build: Ver.3.21 -->
 </body>
 </html>
