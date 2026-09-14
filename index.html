@@ -691,7 +691,7 @@ function relationAlreadyResolved(source,target){return sim.completedRelations?.h
 function followUps(){
  const o=[];if(!sim.lastResult)return o;
  const source=sim.lastResult.dec;
- for(const[d,l,min]of(FOLLOW_UPS[source]||[]){
+ for(const[d,l,min]of(FOLLOW_UPS[source]||[])){
   if(!atLeast(sim.lastResult.reportedLevel,min))continue;
   const key=followUpKey(source,d,l);
   if(sim.completedFollowUps.has(key))continue;
