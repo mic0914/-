@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.1</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.2</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -40,7 +40,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.1</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.2</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / 17</div>
@@ -209,7 +209,7 @@ const GENERIC_RESULTS={
 DEC03:{L0:"主要岸壁・係留施設に明確な異常は確認されていません。",L1:"岸壁に軽微な変状がありますが、係留機能は概ね維持されています。",L2:"岸壁・背後に中程度の変状を確認しました。利用条件の確認が必要です。",L3:"岸壁・係留機能に重大な制約が生じています。",L4:"主要岸壁の通常利用は困難です。"},
 DEC04:{L0:"防波堤・護岸に港湾機能へ影響する変状は確認されていません。",L1:"防波堤等に軽微な変状を確認しました。",L2:"防波堤に局部的な損傷があり、静穏性への影響確認が必要です。",L3:"防波堤・外郭施設に重大な損傷があり、港内静穏性が低下しています。",L4:"外郭施設に甚大な損傷があり、港口・港内利用条件が大きく変化しています。"},
 DEC05:{L0:"港口・航路・泊地に重大な異常は確認されていません。",L1:"小規模な航行上の注意要因があります。",L2:"航路・泊地の一部に障害があり、追加確認が必要です。",L3:"船型・喫水等の大きな制限が必要となる可能性があります。",L4:"通常の船舶入港は困難です。"},
-DEC06:{L0:"岸壁背後・エプロン・港内道路は概ね使用可能です。",L1:"港内物流機能に軽微な制約があります。",L2:"使用範囲・車両動線に部分的な制限が必要です。",L3:"港内物流機能が大きく制限されています。",L4:"広範囲で通行又は荷役が困難です。"},
+DEC06:{L0:"岸壁背後・エプロン・港内道路は概ね使用可能です。",L1:"港内物流機能に軽微な制約があります。",L2:"使用範囲・車両動線に部分的な制限が必要です。",L3:"港内物流機能が大きく制限されています。",L4:"広範囲で通行又は荷役が困難です。自港内の代替ヤード・動線と代替港の検討が必要です。"},
 DEC07:{L0:"荷役設備は通常運転可能です。",L1:"荷役能力に軽微な低下があります。",L2:"一部荷役設備が停止し、処理能力が低下しています。",L3:"主要荷役機能が大きく制限されています。",L4:"荷役機能がほぼ停止しています。"},
 DEC08:{L0:"電力・通信・情報システムは正常です。",L1:"一部で瞬停・通信混雑等が発生しています。",L2:"一部停電又は通信障害が発生しています。",L3:"主要電力・通信・情報システムが大きく制限されています。",L4:"港湾運営に必要な電力・通信機能が重大な停止状態です。"},
 DEC09:{L0:"必要な人員は概ね確保されています。",L1:"一部参集遅れがありますが主要業務は実施可能です。",L2:"必要人員の一部が不足しています。",L3:"人員・専門オペレーター不足で復旧・荷役能力が大きく制限されています。",L4:"主要業務に必要な人員を確保できていません。"},
@@ -230,7 +230,7 @@ EQTS:{
 TCSS:{
  DEC03:{L1:"岸壁本体は概ね使用可能ですが、一部に越波・冠水跡があります。",L2:"岸壁前面・背後の冠水等により利用範囲の確認が必要です。"},
  DEC05:{L2:"港内に漂流物を確認しました。高潮による貨物流出の可能性があります。",L3:"大型漂流物やコンテナ等が航路付近へ流出し、船舶運航を大きく制限しています。",L4:"航路・泊地に重大な漂流障害があり通常入港は困難です。"},
- DEC06:{L2:"ヤードの一部が浸水し、車両動線・貨物取扱いに制限があります。",L3:"ヤードが広範囲に浸水し、貨物移動・荷役動線が大きく制限されています。",L4:"ヤード・港内道路が広範囲で浸水し、通常の物流機能は困難です。"},
+ DEC06:{L2:"ヤードの一部が浸水し、車両動線・貨物取扱いに制限があります。",L3:"ヤードが広範囲に浸水し、貨物移動・荷役動線が大きく制限されています。",L4:"ヤード・港内道路が広範囲で浸水し、通常の物流機能は困難です。自港内の代替ヤード・動線と代替港の検討が必要です。"},
  DEC07:{L2:"一部荷役機械が浸水・電気系統異常で停止しています。",L3:"主要荷役設備の一部が停止し、荷役能力が大幅に低下しています。",L4:"浸水・電源障害等により荷役機能がほぼ停止しています。"},
  DEC08:{L2:"高潮浸水の影響で一部停電が発生しています。非常用電源の確認が必要です。",L3:"主要設備への電力供給が停止し、非常用電源への依存が高まっています。",L4:"主要電気設備が浸水し、港湾運営に必要な電力供給が困難です。"},
  DEC11:{L2:"臨港道路の一部が冠水し、迂回路利用が必要です。",L3:"主要ゲート・道路の冠水でトラック輸送が大きく制限されています。"},
@@ -252,7 +252,7 @@ const FOLLOW_UPS={
 DEC03:[["DEC06","岸壁背後・エプロンの影響を確認する","L2"],["DEC03","隣接・代替岸壁を確認する","L3"]],
 DEC04:[["DEC13","港内静穏性と船舶運航条件を確認する","L2"],["DEC05","港口付近の航行安全を確認する","L3"]],
 DEC05:[["DEC05","漂流物・沈没物を詳細確認する","L2"],["DEC05","泊地・水深を確認する","L2"],["DEC10","対応に使える作業船・資機材を確認する","L3"]],
-DEC06:[["DEC11","臨港道路・背後アクセスへの影響を確認する","L2"],["DEC07","荷役可能範囲を確認する","L2"]],
+DEC06:[["DEC11","臨港道路・背後アクセスへの影響を確認する","L2"],["DEC07","荷役可能範囲を確認する","L2"],["DEC06","利用可能なヤード・港内代替動線を確認する","L3"]],
 DEC07:[["DEC08","荷役設備への電力供給を確認する","L2"],["DEC13","代替荷役・船舶運航条件を確認する","L3"]],
 DEC08:[["DEC07","荷役機能への影響を確認する","L3"]],
 DEC09:[["DEC10","外部応援・復旧資源を確認する","L2"]],
@@ -357,7 +357,7 @@ function altVesselText(v){return v==="ACCEPT"?"受入可能":v==="CONDITIONAL"?"
 function altCongestionText(v){return v==="LOW"?"低":v==="MEDIUM"?"中":"高"}
 function altCoordText(v){return v==="ACCEPTED"?"受入調整済":v==="CONDITIONAL"?"条件付き調整済":v==="REJECTED"?"調整不成立":"未調整"}
 function altTriggerState(){
- const critical=["DEC03","DEC05","DEC07","DEC11","DEC13"];
+ const critical=["DEC03","DEC05","DEC06","DEC07","DEC11","DEC13"];
  const l4=critical.filter(d=>sim.known[d]?.level==="L4");
  const l3=critical.filter(d=>sim.known[d]?.level==="L3");
  if(l4.length)return{trigger:true,reason:`${DEC_META[l4[0]].name}でL4「甚大」を確認`};
@@ -552,7 +552,7 @@ function altOption(id,label,priority,portKey=null){return{id,type:"ALT",dec:"ALT
 function alternativePortCandidates(){
  const a=sim.altPorts;if(!a?.activated)return[];
  const o=[];
- if(a.stage===0){o.push(altOption("ALT-SURVEY","代替港の受入可否を確認する",88));return o}
+ if(a.stage===0){const x=altOption("ALT-SURVEY","代替港の受入可否を確認する",995);x.mandatory=true;x.followUpKind="ALT_SURVEY";o.push(x);return o}
  for(const key of["A","B"]){
   const p=a.ports[key],k=p.known;
   if(!k.detail)o.push(altOption(`ALT-DETAIL-${key}`,`${p.name}の空き岸壁・荷役余力を確認する`,80,key));
@@ -909,13 +909,13 @@ function riskPenalty(){
 }
 function decisionScore(){const h=sim.history.filter(x=>x.turn<=15&&x.result);if(!h.length)return 0;let pts=0;for(const x of h){const a=x.result.actualLevel;pts+=a==="L4"?3:a==="L3"?2.5:a==="L2"?2:a==="L1"?1.2:.8}return Math.min(10,pts/(h.length*3)*10)}
 function recoveryScore(){return!sim.recovery?0:sim.recovery.outcome==="GOOD"?10:sim.recovery.outcome==="PARTIAL"?7:3}
-function policyScore(){const sev=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),mod=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL")return sev?0:mod?2:5;if(sim.finalPolicy==="POLICY-CONDITIONAL")return sim.altPorts?.strategy?5:(sev?3:5);if(sim.finalPolicy==="POLICY-RELIEF")return sim.scenario==="EQTS"?5:3;if(sim.finalPolicy==="POLICY-ALTERNATIVE")return sim.altPorts?.strategy?5:sev?3:1;return 0}
+function policyScore(){const sev=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),mod=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL")return sev?0:mod?2:5;if(sim.finalPolicy==="POLICY-CONDITIONAL")return sim.altPorts?.strategy?5:(sev?3:5);if(sim.finalPolicy==="POLICY-RELIEF")return sim.scenario==="EQTS"?5:3;if(sim.finalPolicy==="POLICY-ALTERNATIVE")return sim.altPorts?.strategy?5:sev?3:1;return 0}
 function infoScore(){let t=0,f=0;for(const[d,a]of Object.entries(sim.actual)){const s=a==="L4"?3:a==="L3"?2:a==="L2"?1:0,k=sim.known[d];t+=s;if(s&&k&&k.level!=="UNKNOWN"&&!k.stale&&(k.confidence==="A"||k.confidence==="B"))f+=s}const r=t?f/t*10:10;let c=5;c-=Math.min(3,Object.values(sim.known).filter(x=>x.stale).length+Object.values(sim.known).filter(x=>x.confidence==="C").length*.5);return{risk:r,conf:Math.max(0,c)}}
 function metrics(){const sea=eff(["DEC04","DEC05","DEC13"]),berth=eff(["DEC03","DEC06","DEC07"]),land=eff(["DEC06","DEC11"]),base=eff(["DEC08","DEC09","DEC10"]),log=eff(["DEC12","DEC13"]);let port=.25*sea+.25*berth+.2*land+.15*base+.15*log,rel=.3*sea+.25*berth+.2*land+.15*base+.1*log,reg=.2*sea+.2*berth+.25*land+.1*base+.15*log+10;if(sim.actual.DEC05==="L4")port=Math.min(port,40);if(sim.actual.DEC03==="L4")port=Math.min(port,45);if(sim.actual.DEC11==="L4"&&!sim.altPorts?.strategy)reg=Math.min(reg,35);
  const st=sim.altPorts?.strategy;if(st){const good=st.coordination==="ACCEPTED",center=st.mode==="CENTERED";rel+=good?(center?25:18):(center?17:12);reg+=good?(center?35:27):(center?25:18)}
  return{sea,berth,land,base,log,port:Math.round(port),relief:Math.round(Math.min(100,rel)),regional:Math.round(Math.min(100,reg))}}
 function grade(s){return s>=90?["S","極めて良好"]:s>=75?["A","主要機能を適切に確保"]:s>=60?["B","限定的な機能確保"]:s>=40?["C","重大なボトルネックが残存"]:["D","港湾機能継続に重大な課題"]}
-function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);const m=metrics(),func=15*m.sea/100+15*m.berth/100+10*m.land/100+10*m.base/100+10*m.log/100,inf=infoScore(),base=func+decisionScore()+recoveryScore()+policyScore()+inf.risk+inf.conf,risk=riskPenalty(),mistakes=majorMistakeResult(),altEval=alternativePortScore(),tp=timePenalty();let final=base-risk.penalty-mistakes.penalty-tp;const l4=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),l3=["DEC03","DEC05","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL"&&l4)final=Math.min(final,39);else if(sim.finalPolicy==="POLICY-NORMAL"&&l3)final=Math.min(final,59);if(sim.elapsedSeconds-600>120)final=Math.min(final,30);final=Math.max(0,Math.min(100,final));const[g,gt]=grade(final),ot=Math.max(0,sim.elapsedSeconds-600);
+function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);const m=metrics(),func=15*m.sea/100+15*m.berth/100+10*m.land/100+10*m.base/100+10*m.log/100,inf=infoScore(),base=func+decisionScore()+recoveryScore()+policyScore()+inf.risk+inf.conf,risk=riskPenalty(),mistakes=majorMistakeResult(),altEval=alternativePortScore(),tp=timePenalty();let final=base-risk.penalty-mistakes.penalty-tp;const l4=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L4"),l3=["DEC03","DEC05","DEC06","DEC07","DEC11"].some(d=>sim.actual[d]==="L3");if(sim.finalPolicy==="POLICY-NORMAL"&&l4)final=Math.min(final,39);else if(sim.finalPolicy==="POLICY-NORMAL"&&l3)final=Math.min(final,59);if(sim.elapsedSeconds-600>120)final=Math.min(final,30);final=Math.max(0,Math.min(100,final));const[g,gt]=grade(final),ot=Math.max(0,sim.elapsedSeconds-600);
  addMessage("left","score","SIMULATION COMPLETE",`${SCENARIOS[sim.scenario].label}\n発災規模　${SEVERITY_PROFILES[sim.severity].label}\n完了時間　${formatClock(sim.elapsedSeconds)}\n超過時間　${ot?formatClock(-ot).replace("－",""):"00:00"}`);
  addMessage("left","score","最終評価",`対応力点数　${base.toFixed(1)}点\n未確認重大リスク　－${risk.penalty.toFixed(1)}点\n重大判断ミス　－${mistakes.penalty.toFixed(1)}点（${mistakes.count}件）\n代替港対応評価　${altEval.applicable?`${altEval.score.toFixed(1)} / 10点`:(altEval.reason||"対象外")}\n時間超過減点　－${tp.toFixed(1)}点\n\n最終得点　${final.toFixed(1)}点\n判定　${g}　${gt}\n\n※ 代替港対応評価は復旧・最終方針の評価内容にも反映されています。`);
  addMessage("left","score","機能評価",`自港港湾機能回復率　${m.port}％\n被災地支援機能　${m.relief}％\n地域物流継続率　${m.regional}％`);
