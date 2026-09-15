@@ -22,3 +22,4 @@ if m:
 # Exact old message must only be possible as source text but will be normalized at runtime.
 assert 'Ver.3.28' in s and 'altPortAlreadyConsidered' in s and 'normalizeAltPortRepeatLabel' in s
 p.write_text(s)
+# workflow trigger refresh 2026-09-15
