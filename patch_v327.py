@@ -11,3 +11,4 @@ for t in texts:
 assert 'Ver.3.27' in s
 for t in texts: assert t not in s
 p.write_text(s)
+# retrigger after successful Ver.3.26 patch
