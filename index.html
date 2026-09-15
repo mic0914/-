@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.27</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.28</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.27</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.28</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -125,6 +125,22 @@ function responseRank(level){return RESPONSE_LEVELS[level]?.rank||3}
 function recoveryTurn(){return Math.max(2,(sim.maxTurns||MAX_TURNS)-1)}
 function finalTurn(){return sim.maxTurns||MAX_TURNS}
 function checkEndTurn(){return Math.max(1,(sim.maxTurns||MAX_TURNS)-2)}
+function altPortProgress(){
+ const a=sim?.altPorts;
+ if(!a?.activated)return 0;
+ const ports=Object.values(a.ports||{});
+ if(ports.some(p=>p.known?.cargo))return 4;
+ if(ports.some(p=>p.known?.coordinated!==null&&p.known?.coordinated!==undefined))return 3;
+ if(a.surveyCompleted||ports.some(p=>p.known?.summary||p.known?.detail||p.known?.access))return 2;
+ return 1
+}
+function altPortAlreadyConsidered(){return altPortProgress()>=2}
+function normalizeAltPortRepeatLabel(label){
+ if(!altPortAlreadyConsidered())return label;
+ if(label==="代替港A・Bの検討を開始します。")return "代替港A・Bの確認済み情報を継続して判断に使用します。";
+ if(/代替港A・B.*検討を開始/.test(label))return label.replace(/検討を開始(?:します)?。?/,'確認済み条件を再確認する');
+ return label
+}
 function responseStatusText(){return RESPONSE_LEVELS[sim.responseLevel]?.label||"重度"}
 function updateScenarioStatus(){
  if(!sim.scenario)return;
@@ -402,6 +418,7 @@ function tsunamiWarningActive(){return sim.scenario==="EQTS"&&!!sim.tsunamiSafet
 function activateTsunamiSafety(){if(!sim.tsunamiSafety)sim.tsunamiSafety={active:false,evacuated:false,entryRestricted:false,revision:0};sim.tsunamiSafety.active=true;sim.tsunamiSafety.revision++;upsertPendingCritical({kind:"TSUNAMI_EVAC",createdTurn:sim.currentTurn,label:"港湾関係者・現場作業員を安全な場所へ一時避難させ、港内への立入りを制限する"})}
 function resolveTsunamiEvacuation(){if(!sim.tsunamiSafety)sim.tsunamiSafety={active:true,evacuated:false,entryRestricted:false,revision:0};sim.tsunamiSafety.evacuated=true;sim.tsunamiSafety.entryRestricted=true;sim.pendingCritical=(sim.pendingCritical||[]).filter(x=>x.kind!=="TSUNAMI_EVAC");return "人命安全を優先し、港湾関係者・現場作業員の一時避難と港内への立入制限を継続します。津波警報・港内水位変動が収束し、安全が確認されるまで現地立入りを伴う施設確認は実施しません。"}
 function addMessage(side,type,name,text,chip=""){
+ text=normalizeAltPortRepeatLabel(String(text??""));
  if(type==="event"&&sim?.scenario==="EQTS"&&/津波警報/.test(String(text||""))&&/水位変動/.test(String(text||"")))activateTsunamiSafety();const row=document.createElement("div");row.className=`msg-row ${side}`;const m=document.createElement("div");m.className=`msg ${type}`;const n=document.createElement("div");n.className="name";n.textContent=name;const b=document.createElement("div");b.textContent=text;m.append(n,b);if(chip){const c=document.createElement("span");c.className="chip";c.textContent=chip;m.appendChild(c)}row.appendChild(m);chat.appendChild(row);requestAnimationFrame(()=>row.scrollIntoView({behavior:"smooth",block:"end"}))}
 function syncControlHeight(){if(controlWrap.style.display==="none"){document.documentElement.style.setProperty("--control-height","0px");return}const h=Math.ceil(controlWrap.getBoundingClientRect().height);document.documentElement.style.setProperty("--control-height",`${h}px`)}
 function updateHeader(){const mt=sim.maxTurns||MAX_TURNS;turnLabel.textContent=sim.scenario?`TURN ${String(sim.currentTurn).padStart(2,"0")} / ${mt}`:"TURN -- / --";timerLabel.textContent=formatClock(sim.remainingSeconds);timerLabel.classList.toggle("overtime",sim.remainingSeconds<0);progressBar.style.width=sim.scenario?`${Math.max(0,Math.min(100,(sim.currentTurn-1)/mt*100))}%`:"0%"}
@@ -1298,7 +1315,8 @@ function gapOpportunityKey(key){
  return aliases[key]||key
 }
 function opportunityWasOffered(key){return!!sim.offeredOpportunities?.has(gapOpportunityKey(key))}
-function renderOptions(options,refreshed=false,fromReconsider=false){sim.currentOptions=options;registerOfferedOptions(options);choiceList.innerHTML="";for(const x of options){const b=document.createElement("button");b.className="choice-button";b.textContent=x.label;b.onclick=()=>handleDecision(x);choiceList.appendChild(b)}if(sim.currentTurn<=checkEndTurn()){ensureChoiceReview(options);reconsiderButton.style.display="block";reconsiderButton.disabled=false}else{reconsiderButton.style.display="none"}if(!fromReconsider)promptText.textContent=refreshed?"状況が更新されました。次の対応を選択してください":sim.currentTurn===recoveryTurn()?"復旧・代替方針を選択してください":sim.currentTurn===finalTurn()?"最終的な港湾運用方針を選択してください":"次の対応を選択してください";syncControlHeight();requestAnimationFrame(()=>{const l=chat.lastElementChild;if(l)l.scrollIntoView({behavior:"smooth",block:"end"})})}
+function renderOptions(options,refreshed=false,fromReconsider=false){
+ if(altPortAlreadyConsidered()&&Array.isArray(options))options=options.filter(x=>!(/代替港A・B.*検討を開始/.test(x?.label||"")));sim.currentOptions=options;registerOfferedOptions(options);choiceList.innerHTML="";for(const x of options){const b=document.createElement("button");b.className="choice-button";b.textContent=x.label;b.onclick=()=>handleDecision(x);choiceList.appendChild(b)}if(sim.currentTurn<=checkEndTurn()){ensureChoiceReview(options);reconsiderButton.style.display="block";reconsiderButton.disabled=false}else{reconsiderButton.style.display="none"}if(!fromReconsider)promptText.textContent=refreshed?"状況が更新されました。次の対応を選択してください":sim.currentTurn===recoveryTurn()?"復旧・代替方針を選択してください":sim.currentTurn===finalTurn()?"最終的な港湾運用方針を選択してください":"次の対応を選択してください";syncControlHeight();requestAnimationFrame(()=>{const l=chat.lastElementChild;if(l)l.scrollIntoView({behavior:"smooth",block:"end"})})}
 function renderTurn(){
  updateHeader();
  if(!sim.choiceReview||sim.choiceReview.turn!==sim.currentTurn)sim.choiceReview=null;
@@ -2001,7 +2019,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.27 -->
-<!-- deploy-build: Ver.3.27 -->
+<!-- deploy: Ver.3.28 -->
+<!-- deploy-build: Ver.3.28 -->
 </body>
 </html>
