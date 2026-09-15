@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.32</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.33</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.32</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.33</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -1590,7 +1590,7 @@ function ensureBerthParallelAtRecovery(){
  if(!sim.berthParallel)sim.berthParallel={initiated:true,turn:recoveryTurn(),sourceLevel:sim.known.DEC03?.level||sim.actual.DEC03};
  activateAlternativePortForBerthResponse()
 }
-function recoveryAppropriateness(option){
+function recoveryRawAppropriateness(option){
  const lv=d=>LEVEL_VALUE[sim.actual[d]]??0;
  const critical=["DEC03","DEC05","DEC06","DEC07","DEC08","DEC10","DEC11","DEC12","DEC13"];
  const worst=Math.max(...critical.map(lv));
@@ -1620,6 +1620,13 @@ function recoveryAppropriateness(option){
  if(targetWorst>=3)return 9;
  if(targetWorst>=2)return 7;
  return 5
+}
+function recoveryAppropriateness(option){
+ const raw=recoveryRawAppropriateness(option);
+ const shown=(sim.currentOptions||[]).filter(x=>x?.type==="RECOVERY");
+ const candidates=shown.length?shown:[option];
+ const best=Math.max(...candidates.map(recoveryRawAppropriateness),raw,1);
+ return Math.max(0,Math.min(10,10*raw/best))
 }
 function resolveRecovery(option){
  const appropriateness=recoveryAppropriateness(option);
@@ -2144,7 +2151,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.32 -->
-<!-- deploy-build: Ver.3.32 -->
+<!-- deploy: Ver.3.33 -->
+<!-- deploy-build: Ver.3.33 -->
 </body>
 </html>
