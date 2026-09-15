@@ -1,0 +1,32 @@
+name: Apply Ver.3.28 alternate port duplicate suppression
+on:
+  push:
+    paths: ['patch_v328.py']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python patch_v328.py
+      - name: Validate
+        run: |
+          python - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('index.html').read_text()
+          assert 'Ver.3.28' in s
+          assert 'function altPortProgress()' in s
+          assert 'normalizeAltPortRepeatLabel' in s
+          m=re.search(r'<script>([\s\S]*?)</script>',s); assert m
+          pathlib.Path('/tmp/app.js').write_text(m.group(1))
+          PY
+          node --check /tmp/app.js
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update to Ver.3.28 suppressing repeated alternate-port start'
+          git push
