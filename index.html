@@ -2125,7 +2125,7 @@ function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);co
  }else{
   gapText="今回の被災条件と選択履歴を照合した範囲では、大きく不足した対応は確認されませんでした。"
  }
- addMessage("left","score","不足していた対応",gapText+"\n\n※ ");
+ addMessage("left","score","不足していた対応",gapText);
  if(mistakes.details.length)addMessage("left","event danger","重大判断ミス",mistakes.details.join("\n"));
  if(risk.details.length)addMessage("left","event danger","未確認重大リスク",risk.details.join("\n"));
  addMessage("left","system","結果の留意事項","本結果は訓練上の参考であり、唯一・絶対の正解を示すものではありません。実災害では、現地状況と最新情報を踏まえて判断してください。");
