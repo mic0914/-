@@ -1,0 +1,35 @@
+name: Apply Ver.3.26 tsunami evacuation patch
+on:
+  push:
+    paths:
+      - 'patch_v326.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: python patch_v326.py
+      - name: Validate JavaScript and tsunami safety logic
+        run: |
+          python - <<'PY'
+          import re, pathlib
+          s=pathlib.Path('index.html').read_text()
+          m=re.search(r'<script>([\s\S]*?)</script>',s)
+          pathlib.Path('/tmp/app.js').write_text(m.group(1))
+          assert 'Ver.3.26' in s
+          assert 'TSUNAMI_EVAC' in s
+          assert 'activateTsunamiSafety' in s
+          assert '一時避難' in s
+          PY
+          node --check /tmp/app.js
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update to Ver.3.26 adding tsunami evacuation safety logic'
+          git push
