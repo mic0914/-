@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.28</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.29</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.28</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.29</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -804,6 +804,36 @@ function resolveUtilizationCondition(dec){
  removePendingCritical(utilizationConditionKey(dec));
  return utilizationOutcomeText(dec,outcome)
 }
+function requestShipAcceptanceResponses(){
+ const items=[
+  ["SHIP_WAIT","対象船舶の入港を見合わせ、安全な海域で待機させる",965],
+  ["SHIP_ALT_BERTH","利用可能な別岸壁と、船型・喫水等の受入条件を確認する",945],
+  ["SHIP_ALT_PORT",altPortAlreadyConsidered()?"確認済みの代替港について船会社・荷主と利用調整する":"代替港への寄港変更について船会社・荷主と調整する",935],
+  ["SHIP_REENTRY","航路・泊地・岸壁の安全性を再確認し、受入再開条件を整理する",955]
+ ];
+ for(const [kind,label,priority] of items)if(!hasPendingCritical(kind))upsertPendingCritical({kind,createdTurn:sim.currentTurn,label,priority})
+}
+function resolveShipAcceptanceResponse(option){
+ const kind=option.followUpKind;
+ removePendingCritical(kind);
+ if(kind==="SHIP_WAIT")return "対象船舶の入港を見合わせ、船会社へ安全な海域での待機を要請しました。港内の安全条件が確認できるまで入港を再開しません。";
+ if(kind==="SHIP_ALT_BERTH"){
+  sim.altBerth.known=true;
+  const v=sim.altBerth.actual;
+  return `別岸壁と船舶受入条件を確認しました。\n・代替岸壁：${localAltBerthText(v)}\n船型・喫水・係留条件・荷役範囲を踏まえて使用可否を判断します。`
+ }
+ if(kind==="SHIP_ALT_PORT"){
+  activateAlternativePortIfNeeded();
+  if(sim.altPorts?.surveyCompleted)return "確認済みの代替港情報を用いて、船会社・荷主との寄港変更・貨物振替の利用調整へ進みます。代替港A・Bの検討を最初からやり直しません。";
+  return "船会社・荷主と寄港変更の調整を開始し、代替港の受入可否・荷役余力・背後輸送条件の確認へ進みます。"
+ }
+ if(kind==="SHIP_REENTRY"){
+  for(const d of["DEC03","DEC05","DEC13"])Object.assign(sim.known[d],{level:sim.actual[d],confidence:"A",confirmed:true,lastCheckedTurn:sim.currentTurn,stale:false});
+  const worst=Math.max(...["DEC03","DEC05","DEC13"].map(d=>LEVEL_VALUE[sim.actual[d]]||0));
+  return worst>=4?"航路・泊地・岸壁を再確認しましたが、重大な支障が残っています。現時点では受入を再開せず、応急復旧又は代替施設の確保を継続します。":worst>=3?"航路・泊地・岸壁を再確認しました。制約が残るため、船型・喫水・使用岸壁等を限定した受入再開条件を整理します。":"航路・泊地・岸壁を再確認しました。安全条件を満たすことを確認したうえで、対象船舶の受入再開を調整できます。"
+ }
+ return "船舶受入に必要な対応を実施しました。"
+}
 function criticalFollowUpsBase(){
  const o=[];
  for(const p of sim.pendingCritical){
@@ -818,6 +848,9 @@ function criticalFollowUpsBase(){
   if(p.kind==="ALT_BERTH_CHECK"){
    const x=opt("DEC03","FOLLOW_UP",p.label||"隣接・代替岸壁の利用可否を確認する");
    x.priority=980;x.mandatory=true;x.followUpKind="ALT_BERTH_CHECK";o.push(x)
+  }
+  if(["SHIP_WAIT","SHIP_ALT_BERTH","SHIP_ALT_PORT","SHIP_REENTRY"].includes(p.kind)){
+   const x=opt("DEC13","FOLLOW_UP",p.label);x.priority=p.priority||940;x.followUpKind=p.kind;o.push(x)
   }
   if(p.kind==="CARGO_FUNCTION_PRIORITY"&&cargoPriorityNeedsAction()){
    const x=opt("DEC12","FOLLOW_UP",p.label||"重要貨物・主要機能の優先順位を設定する");
@@ -1158,6 +1191,7 @@ function requiredChoiceRank(x){
  if(x?.mandatory)return 1000+(x.priority||0);
  if(x?.type==="SURGE")return 1900+(x.priority||0);
  if(x?.followUpKind==="POWER_CONTINUITY"||x?.followUpKind==="BERTH_RECOVERY_ALT"||x?.followUpKind==="ALT_BERTH_CHECK"||x?.followUpKind==="BERTH_RESOURCE_CHECK"||x?.followUpKind==="UTIL_CONDITION")return 1800+(x.priority||0);
+ if(["SHIP_WAIT","SHIP_ALT_BERTH","SHIP_ALT_PORT","SHIP_REENTRY"].includes(x?.followUpKind))return 1725+(x.priority||0);
  if(x?.id==="ALT-SURVEY")return 1750+(x.priority||0);
  if(x?.type==="INUNDATION")return 1700+(x.priority||0);
  const critical=["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"];
@@ -1456,6 +1490,10 @@ function inspect(option){
   activateInundationResponse();
   text+="\n入港を直ちに再開せず、安全海域での待機、港内代替施設、復旧見込み、代替港を比較して判断する必要があります。"
  }
+ if(option.dec==="DEC13"&&reported==="L4"){
+  requestShipAcceptanceResponses();
+  text+="\n対象船舶の安全確保、別岸壁・受入条件、代替港調整、受入再開条件を状況に応じて判断する必要があります。"
+ }
  if(option.dec==="DEC10"&&["L0","L1"].includes(reported))text+="\n必要な復旧作業へ資源を投入できる可能性があります。";
  if(option.dec==="DEC12"&&atLeast(reported,"L2")){
   requestCargoPriority();
@@ -1573,6 +1611,8 @@ function resolveRequiredBatch(option){
   }else if(item.followUpKind==="BERTH_RESOURCE_CHECK"){
    Object.assign(sim.known.DEC10,{level:sim.actual.DEC10,confidence:"A",confirmed:true,lastCheckedTurn:sim.currentTurn,stale:false});
    sim.berthRequired.resource=false;lines.push(item.label+"：確認済み")
+  }else if(["SHIP_WAIT","SHIP_ALT_BERTH","SHIP_ALT_PORT","SHIP_REENTRY"].includes(item.followUpKind)){
+   resolveShipAcceptanceResponse(item);lines.push(item.label+"：対応済み")
   }else if(item.followUpKind==="TSUNAMI_EVAC"){resolveTsunamiEvacuation();lines.push(item.label+"：実施済み")}else if(item.followUpKind==="CARGO_FUNCTION_PRIORITY"){
    resolveCargoPriority();lines.push(item.label+"：設定済み")
   }else if(item.followUpKind==="UTIL_CONDITION"){
@@ -1626,6 +1666,10 @@ function handleDecision(option){
    Object.assign(sim.known.DEC10,{level:sim.actual.DEC10,confidence:"A",confirmed:true,lastCheckedTurn:sim.currentTurn,stale:false});sim.lastResult=null;sim.berthRequired.resource=false;
    addMessage("left","result",phaseLabel(),`作業船・重機・資材等の復旧資源を確認しました。\n復旧資源：${sim.actual.DEC10}「${LEVEL_LABEL[sim.actual.DEC10]}」`,"復旧資源確認済み");
    sim.history.push({turn:sim.currentTurn,dec:"DEC10",label:option.label,special:"BERTH_RESOURCE_CHECK"})
+  }else if(["SHIP_WAIT","SHIP_ALT_BERTH","SHIP_ALT_PORT","SHIP_REENTRY"].includes(option.followUpKind)){
+   const t=resolveShipAcceptanceResponse(option);sim.lastResult=null;
+   addMessage("left","result",phaseLabel(),t,"船舶受入対応");
+   sim.history.push({turn:sim.currentTurn,dec:"DEC13",label:option.label,special:option.followUpKind})
   }else if(option.followUpKind==="CARGO_FUNCTION_PRIORITY"){
    const t=resolveCargoPriority();sim.lastResult=null;
    addMessage("left","result",phaseLabel(),t,"優先順位設定済み");
@@ -2019,7 +2063,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.28 -->
-<!-- deploy-build: Ver.3.28 -->
+<!-- deploy: Ver.3.29 -->
+<!-- deploy-build: Ver.3.29 -->
 </body>
 </html>
