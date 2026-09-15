@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.31</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.32</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -53,7 +53,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.31</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.32</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -1421,6 +1421,10 @@ function gapOpportunityKey(key){
  return aliases[key]||key
 }
 function opportunityWasOffered(key){return!!sim.offeredOpportunities?.has(gapOpportunityKey(key))}
+function checkPhaseOpportunityWasOffered(key){
+ const p=opportunityPhase(key);
+ return p!==null&&p<=checkEndTurn()
+}
 function renderOptions(options,refreshed=false,fromReconsider=false){
  if(altPortAlreadyConsidered()&&Array.isArray(options))options=options.filter(x=>!(/代替港A・B.*検討を開始/.test(x?.label||"")));sim.currentOptions=options;registerOfferedOptions(options);choiceList.innerHTML="";for(const x of options){const b=document.createElement("button");b.className="choice-button";b.textContent=x.label;b.onclick=()=>handleDecision(x);choiceList.appendChild(b)}if(sim.currentTurn<=checkEndTurn()){ensureChoiceReview(options);reconsiderButton.style.display="block";reconsiderButton.disabled=false}else{reconsiderButton.style.display="none"}if(!fromReconsider)promptText.textContent=refreshed?"状況が更新されました。次の対応を選択してください":sim.currentTurn===recoveryTurn()?"復旧・代替方針を選択してください":sim.currentTurn===finalTurn()?"最終的な港湾運用方針を選択してください":"次の対応を選択してください";syncControlHeight();requestAnimationFrame(()=>{const l=chat.lastElementChild;if(l)l.scrollIntoView({behavior:"smooth",block:"end"})})}
 function renderTurn(){
@@ -1917,24 +1921,24 @@ function coreResponseScore(){
  const initialDone=initialDecs.filter(completedCheckPhaseDec).length;
  const initial=15*Math.min(1,initialDone/Math.min(3,Math.max(1,initialDecs.length)));
 
- // 20点：重大・継続リスクに対する具体対応。実際に提示された対応だけを評価対象とする。
+ // 20点：重大・継続リスクに対する具体対応。確認・対応フェーズで実際に提示された対応だけを評価対象とする。
  const criticalKeys=["BERTH_PARALLEL","CHANNEL","INUNDATION_START","CARGO","POWER","RESOURCE"];
- const criticalApplicable=criticalKeys.filter(k=>opportunityWasOffered(k));
+ const criticalApplicable=criticalKeys.filter(k=>checkPhaseOpportunityWasOffered(k));
  const critical=ratioScore(criticalApplicable.map(coreActionCompleted),20);
 
  // 10点：L2利用条件とEVENT後の重要機能再確認。
  const adaptationChecks=[];
  for(const dec of Object.keys(UTILIZATION_CONDITION_LABELS)){
-  if(opportunityWasOffered("L2_UTILIZATION:"+dec))adaptationChecks.push(!!sim.utilizationConditions[dec]?.checked&&!sim.utilizationConditions[dec]?.stale)
+  if(checkPhaseOpportunityWasOffered("L2_UTILIZATION:"+dec))adaptationChecks.push(!!sim.utilizationConditions[dec]?.checked&&!sim.utilizationConditions[dec]?.stale)
  }
  for(const dec of["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"]){
-  if(opportunityWasOffered("STALE:"+dec))adaptationChecks.push(!sim.known[dec]?.stale)
+  if(checkPhaseOpportunityWasOffered("STALE:"+dec))adaptationChecks.push(!sim.known[dec]?.stale)
  }
  const adaptation=ratioScore(adaptationChecks,10);
 
- // 15点：代替手段・背後輸送・貨物優先等の継続対応。提示された項目のみ対象。
+ // 15点：代替手段・背後輸送・貨物優先等の継続対応。確認・対応フェーズで提示された項目のみ対象。
  const continuityKeys=["BERTH_ALT","INUNDATION_ALTERNATIVE","LAND","SUPPLY","ALT_SURVEY","ALT_COORD","ALT_POLICY"];
- const continuityApplicable=continuityKeys.filter(k=>opportunityWasOffered(k));
+ const continuityApplicable=continuityKeys.filter(k=>checkPhaseOpportunityWasOffered(k));
  const continuity=ratioScore(continuityApplicable.map(coreActionCompleted),15);
 
  const total=Math.max(0,Math.min(60,initial+critical+adaptation+continuity));
@@ -2007,7 +2011,7 @@ function routeGapComments(add){
 }
 function responseGapComments(){
  const c=[];
- const add=(priority,key,text)=>{if(!opportunityWasOffered(key))return;if(!c.some(x=>x.key===key))c.push({priority,key,text:phaseGapText(key,text)})};
+ const add=(priority,key,text)=>{if(!checkPhaseOpportunityWasOffered(key))return;if(!c.some(x=>x.key===key))c.push({priority,key,text:phaseGapText(key,text)})};
  const severe=d=>atLeast(sim.actual[d],"L3");
  const verySevere=d=>sim.actual[d]==="L4";
  const recoveryId=sim.recovery?.optionId||"";
@@ -2082,7 +2086,7 @@ function responseGapComments(){
   const finding=sim.history.find(x=>x.dec===dec&&x.result?.reportedLevel==="L2");
   if(!finding)continue;
   const done=sim.history.some(x=>x.dec===dec&&x.special==="UTIL_CONDITION"&&x.turn>finding.turn);
-  if(!done&&opportunityWasOffered("L2_UTILIZATION:"+dec))l2Needs.push(DEC_META[dec].name)
+  if(!done&&checkPhaseOpportunityWasOffered("L2_UTILIZATION:"+dec))l2Needs.push(DEC_META[dec].name)
  }
  if(l2Needs.length){
   const text=`L2「中程度」を確認した${l2Needs.join("、")}で、利用可能範囲・利用条件の確認が不足していました。`;
@@ -2090,7 +2094,7 @@ function responseGapComments(){
  }
 
  // 情報更新
- const staleCritical=Object.entries(sim.known).filter(([d,k])=>["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"].includes(d)&&k.stale&&atLeast(sim.actual[d],"L2")&&opportunityWasOffered("STALE:"+d));
+ const staleCritical=Object.entries(sim.known).filter(([d,k])=>["DEC03","DEC05","DEC06","DEC07","DEC08","DEC11","DEC13"].includes(d)&&k.stale&&atLeast(sim.actual[d],"L2")&&checkPhaseOpportunityWasOffered("STALE:"+d));
  if(staleCritical.length){
   const text="追加EVENT後に状況が変化した重要機能について、再確認が不足していました。";
   if(!c.some(x=>x.key==="STALE")){const phases=staleCritical.map(([d])=>opportunityPhase("STALE:"+d)).filter(x=>x!=null);const p=phases.length?Math.min(...phases):null;c.push({priority:88,key:"STALE",text:p?`${phaseLabel(p)}で、${text}`:text})}
@@ -2140,7 +2144,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.31 -->
-<!-- deploy-build: Ver.3.31 -->
+<!-- deploy: Ver.3.32 -->
+<!-- deploy-build: Ver.3.32 -->
 </body>
 </html>
