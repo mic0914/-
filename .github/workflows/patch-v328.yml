@@ -1,4 +1,4 @@
-name: Apply Ver.3.28 alternate port duplicate suppression
+name: Apply Ver.3.29 vessel acceptance response
 on:
   push:
     paths: ['patch_v328.py']
@@ -16,9 +16,10 @@ jobs:
           python - <<'PY'
           import re,pathlib
           s=pathlib.Path('index.html').read_text()
-          assert 'Ver.3.28' in s
-          assert 'function altPortProgress()' in s
-          assert 'normalizeAltPortRepeatLabel' in s
+          assert 'Ver.3.29' in s
+          assert 'requestShipAcceptanceResponses' in s
+          assert 'resolveShipAcceptanceResponse' in s
+          assert 'SHIP_WAIT' in s and 'SHIP_ALT_PORT' in s and 'SHIP_REENTRY' in s
           m=re.search(r'<script>([\s\S]*?)</script>',s); assert m
           pathlib.Path('/tmp/app.js').write_text(m.group(1))
           PY
@@ -28,5 +29,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m 'Update to Ver.3.28 suppressing repeated alternate-port start'
+          git commit -m 'Update to Ver.3.29 with contextual vessel acceptance responses'
           git push
