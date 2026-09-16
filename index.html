@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>港湾BCP 10分シミュレーション（案） Ver.3.34</title>
+<title>港湾BCP 10分シミュレーション（案） Ver.3.35</title>
 <style>
 :root{
   --bg:#eef2f5;--panel:#fff;--text:#1d2733;--sub:#5a6775;--header:#16324a;
@@ -30,6 +30,22 @@ header{position:sticky;top:0;z-index:20;background:var(--header);color:#fff;padd
 .prompt{font-size:12px;color:var(--sub);margin-bottom:7px}.choice-list{display:grid;grid-template-columns:1fr;gap:8px}
 button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width:100%;min-height:48px;border-radius:12px;padding:10px 14px;text-align:left;line-height:1.4;background:#fff;color:var(--text);border:1px solid #aebbc7;box-shadow:0 1px 2px rgba(0,0,0,.04)}.choice-button:hover:not(:disabled){background:#f3f7fa;border-color:#7f93a5}.choice-button:disabled{color:#6e7a86;background:#eef2f5;border-color:#cfd7df;cursor:default}
 .secondary{background:#5f6f7e;color:#fff;border-radius:10px;padding:11px 12px}.reconsider{width:100%;margin-top:8px;min-height:42px;border-radius:10px;padding:9px 12px;background:#c62828;color:#fff;display:none;text-align:center}.reconsider:hover:not(:disabled){background:#ad2020}.reconsider:disabled{background:#b88b8b;color:#fff;cursor:default}.restart{width:100%;margin-top:8px;display:none}.small-note{font-size:11px;color:var(--sub);margin-top:6px}
+.pdf-export-row{display:flex;justify-content:center;margin:14px 0 6px}.pdf-export-button{min-width:180px;min-height:42px;border-radius:10px;padding:9px 18px;background:var(--accent);color:#fff}.pdf-export-button:hover{filter:brightness(.94)}
+#printReport{display:none}
+@media print{
+ @page{size:A4 portrait;margin:20mm}
+ html,body{width:auto;height:auto;background:#fff!important}
+ body.pdf-printing .app{display:none!important}
+ body.pdf-printing #printReport{display:block!important}
+ #printReport{font-family:"Yu Gothic","Yu Gothic UI",Meiryo,sans-serif;color:#111;font-size:9.2pt;line-height:1.42}
+ #printReport .pdf-message{display:grid;grid-template-columns:28mm 1fr;column-gap:4mm;padding:2.1mm 0;border-bottom:.2mm solid #d7dde5;break-inside:avoid;page-break-inside:avoid}
+ #printReport .pdf-name{font-weight:700;font-size:8.4pt;color:#405160;word-break:break-word}
+ #printReport .pdf-body{white-space:pre-wrap;word-break:break-word}
+ #printReport .pdf-chip{display:inline-block;margin-top:1.2mm;padding:.4mm 1.6mm;border:.2mm solid #aebbc7;border-radius:3mm;font-size:7.8pt;color:#435160}
+ #printReport .pdf-message.player .pdf-name{color:#2e5a23}
+ #printReport .pdf-message.event .pdf-name,#printReport .pdf-message.danger .pdf-name{color:#8a4e00}
+ #printReport .pdf-message.score .pdf-name{color:#245b7a}
+}
 #startScreen{padding:28px 18px 180px;background:#f7f9fb;min-height:calc(100vh - 100px)}.start-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
 .start-card h2{margin:0 0 8px;font-size:18px}.start-card p{margin:0 0 12px;color:var(--sub);line-height:1.6;font-size:14px}.scenario-grid{display:grid;gap:10px}.scenario-btn{width:100%;text-align:left;border:1px solid #9fb0bf;border-radius:12px;background:#fff;color:var(--text);padding:14px}.scenario-btn strong{display:block;font-size:16px;margin-bottom:4px}.scenario-btn span{font-size:12px;color:var(--sub);font-weight:500}.scenario-btn:hover{background:#f1f6f9}
 .badge{display:inline-block;padding:2px 7px;border-radius:999px;background:#e8eef4;color:#314354;font-size:11px;font-weight:700;margin-right:5px}
@@ -53,7 +69,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
 <div class="app">
 <header>
   <div class="title">港湾BCP 10分シミュレーション（案）</div>
-  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.34</div>
+  <div class="title-sub">港湾BCP災害対策本部の調整責任者 ／ Ver.3.35</div>
   <div class="meta">
     <div class="scenario">Scenario: <span id="scenarioLabel">未選択</span> ／ モデル港</div>
     <div class="turn" id="turnLabel">TURN -- / --</div>
@@ -98,6 +114,7 @@ button{border:0;font:inherit;font-weight:700;cursor:pointer}.choice-button{width
   <div class="small-note">選択肢を1回タップすると確定します。00:00を超えても、その時点の最大TURNまで継続します。</div>
 </div>
 </div>
+<section id="printReport" aria-hidden="true"></section>
 
 <script>
 "use strict";
@@ -406,7 +423,7 @@ const FINAL_POLICIES=[
 let timerHandle=null;
 const sim={scenario:null,severity:null,responseLevel:null,maxTurns:MAX_TURNS,surge:null,currentTurn:1,elapsedSeconds:0,remainingSeconds:600,actual:{},known:{},history:[],events:[],lastResult:null,pendingCritical:[],powerContinuity:{checked:false,revision:0,checkedRevision:-1},inundation:null,altBerth:null,berthParallel:null,lastEventAt:-999,eventBoosts:{},recovery:null,finalPolicy:null,altPorts:null,majorMistakes:[],utilizationConditions:{},cargoPriority:{completed:false,revision:0,completedRevision:-1},tsunamiSafety:{active:false,evacuated:false,entryRestricted:false,revision:0,cleared:false,clearedTurn:null,evacuationTurn:null,clearScheduledTurn:null},choiceReview:null,offeredOpportunities:new Set(),berthRequired:{altBerth:false,altSurvey:false,resource:false},completedFollowUps:new Set(),completedRelations:new Set(),finished:false,currentOptions:[],warning60:false,overtime:false};
 
-const startScreen=document.getElementById("startScreen"),chat=document.getElementById("chat"),controlWrap=document.getElementById("controlWrap"),choiceList=document.getElementById("choiceList"),reconsiderButton=document.getElementById("reconsiderButton"),restartButton=document.getElementById("restartButton"),timerLabel=document.getElementById("timerLabel"),turnLabel=document.getElementById("turnLabel"),progressBar=document.getElementById("progressBar"),promptText=document.getElementById("promptText"),scenarioLabel=document.getElementById("scenarioLabel"),levelHelpButton=document.getElementById("levelHelpButton"),levelGuide=document.getElementById("levelGuide");
+const startScreen=document.getElementById("startScreen"),chat=document.getElementById("chat"),controlWrap=document.getElementById("controlWrap"),choiceList=document.getElementById("choiceList"),reconsiderButton=document.getElementById("reconsiderButton"),restartButton=document.getElementById("restartButton"),timerLabel=document.getElementById("timerLabel"),turnLabel=document.getElementById("turnLabel"),progressBar=document.getElementById("progressBar"),promptText=document.getElementById("promptText"),scenarioLabel=document.getElementById("scenarioLabel"),levelHelpButton=document.getElementById("levelHelpButton"),levelGuide=document.getElementById("levelGuide"),printReport=document.getElementById("printReport");
 
 function weightedLevel(m){const e=Object.entries(m),t=e.reduce((s,[,w])=>s+w,0);let r=Math.random()*t;for(const [l,w] of e){r-=w;if(r<=0)return l}return e[e.length-1][0]}
 function randomInteger(min,max){return Math.floor(Math.random()*(max-min+1))+min}
@@ -463,7 +480,61 @@ function tsunamiRemoteCandidates(){
 }
 function addMessage(side,type,name,text,chip=""){
  text=normalizeAltPortRepeatLabel(String(text??""));
- if(type==="event"&&sim?.scenario==="EQTS"&&/津波警報/.test(String(text||""))&&/水位変動/.test(String(text||""))&&!/解除/.test(String(text||"")))activateTsunamiSafety();const row=document.createElement("div");row.className=`msg-row ${side}`;const m=document.createElement("div");m.className=`msg ${type}`;const n=document.createElement("div");n.className="name";n.textContent=name;const b=document.createElement("div");b.textContent=text;m.append(n,b);if(chip){const c=document.createElement("span");c.className="chip";c.textContent=chip;m.appendChild(c)}row.appendChild(m);chat.appendChild(row);requestAnimationFrame(()=>row.scrollIntoView({behavior:"smooth",block:"end"}))}
+ if(type==="event"&&sim?.scenario==="EQTS"&&/津波警報/.test(String(text||""))&&/水位変動/.test(String(text||""))&&!/解除/.test(String(text||"")))activateTsunamiSafety();const row=document.createElement("div");row.className=`msg-row ${side}`;row.dataset.messageName=name;row.dataset.messageType=type;const m=document.createElement("div");m.className=`msg ${type}`;const n=document.createElement("div");n.className="name";n.textContent=name;const b=document.createElement("div");b.textContent=text;m.append(n,b);if(chip){const c=document.createElement("span");c.className="chip";c.textContent=chip;m.appendChild(c)}row.appendChild(m);chat.appendChild(row);requestAnimationFrame(()=>row.scrollIntoView({behavior:"smooth",block:"end"}))}
+function pdfMessageRows(){
+ const rows=[...chat.querySelectorAll(".msg-row")],out=[];
+ let started=false;
+ for(const row of rows){
+  const name=(row.dataset.messageName||row.querySelector(".name")?.textContent||"").trim();
+  if(!started&&name==="災害対策本部")started=true;
+  if(!started)continue;
+  out.push(row);
+  if(name==="結果の留意事項")break
+ }
+ return out
+}
+function buildPrintReport(){
+ const rows=pdfMessageRows();
+ printReport.innerHTML="";
+ for(const row of rows){
+  const msg=row.querySelector(".msg");
+  if(!msg)continue;
+  const name=(row.dataset.messageName||msg.querySelector(".name")?.textContent||"").trim();
+  const type=(row.dataset.messageType||[...msg.classList].filter(x=>x!=="msg").join(" ")).trim();
+  const body=[...msg.children].find(x=>x.tagName==="DIV"&&!x.classList.contains("name"));
+  const chip=msg.querySelector(".chip");
+  const item=document.createElement("div");item.className=`pdf-message ${type}`;
+  const n=document.createElement("div");n.className="pdf-name";n.textContent=name;
+  const wrap=document.createElement("div");
+  const b=document.createElement("div");b.className="pdf-body";b.textContent=body?.textContent||"";
+  wrap.appendChild(b);
+  if(chip){const s=document.createElement("span");s.className="pdf-chip";s.textContent=chip.textContent||"";wrap.appendChild(s)}
+  item.append(n,wrap);printReport.appendChild(item)
+ }
+ return rows.length
+}
+function exportSimulationPdf(){
+ if(!sim.finished)return;
+ const count=buildPrintReport();
+ if(!count)return;
+ const oldTitle=document.title;
+ const scenario=SCENARIOS[sim.scenario]?.label||"simulation";
+ const d=new Date(),stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+ document.title=`港湾BCPシミュレーション結果_${scenario}_${stamp}`;
+ document.body.classList.add("pdf-printing");
+ try{window.print()}finally{
+  document.body.classList.remove("pdf-printing");
+  document.title=oldTitle;
+  printReport.innerHTML=""
+ }
+}
+function appendPdfExportButton(){
+ document.getElementById("pdfExportRow")?.remove();
+ const row=document.createElement("div");row.id="pdfExportRow";row.className="pdf-export-row";
+ const b=document.createElement("button");b.type="button";b.id="pdfExportButton";b.className="pdf-export-button";b.textContent="PDF出力";b.title="印刷画面からPDFとして保存";
+ b.onclick=exportSimulationPdf;row.appendChild(b);chat.appendChild(row);
+ requestAnimationFrame(()=>row.scrollIntoView({behavior:"smooth",block:"end"}))
+}
 function syncControlHeight(){if(controlWrap.style.display==="none"){document.documentElement.style.setProperty("--control-height","0px");return}const h=Math.ceil(controlWrap.getBoundingClientRect().height);document.documentElement.style.setProperty("--control-height",`${h}px`)}
 function updateHeader(){const mt=sim.maxTurns||MAX_TURNS;turnLabel.textContent=sim.scenario?`TURN ${String(sim.currentTurn).padStart(2,"0")} / ${mt}`:"TURN -- / --";timerLabel.textContent=formatClock(sim.remainingSeconds);timerLabel.classList.toggle("overtime",sim.remainingSeconds<0);progressBar.style.width=sim.scenario?`${Math.max(0,Math.min(100,(sim.currentTurn-1)/mt*100))}%`:"0%"}
 function initKnown(){const o={};for(const d of Object.keys(DEC_META))o[d]={level:"UNKNOWN",confidence:null,confirmed:false,lastCheckedTurn:null,stale:false};return o}
@@ -576,7 +647,7 @@ function beginScenario(code){
  if(timerHandle)clearInterval(timerHandle);
  const severity=randomSeverity();
  sim.scenario=code;sim.severity=severity;sim.responseLevel=initialResponseLevel(severity);sim.maxTurns=responseTurns(sim.responseLevel);sim.surge=null;sim.currentTurn=1;sim.elapsedSeconds=0;sim.remainingSeconds=600;sim.actual=createActual(code,severity);sim.known=initKnown();sim.history=[];sim.events=[];sim.lastResult=null;sim.pendingCritical=[];sim.powerContinuity={checked:false,revision:0,checkedRevision:-1};sim.inundation=createInundationState(severity);sim.altBerth=createAltBerth(severity);sim.berthParallel=null;sim.lastEventAt=-999;sim.eventBoosts={};sim.recovery=null;sim.finalPolicy=null;sim.altPorts=createAltPorts(code,severity);sim.majorMistakes=[];sim.utilizationConditions={};sim.cargoPriority={completed:false,revision:0,completedRevision:-1};sim.tsunamiSafety={active:false,evacuated:false,entryRestricted:false,revision:0,cleared:false,clearedTurn:null,evacuationTurn:null,clearScheduledTurn:null};sim.choiceReview=null;sim.offeredOpportunities=new Set();sim.opportunityPhases=new Map();sim.berthRequired={altBerth:false,altSurvey:false,resource:false};sim.completedFollowUps=new Set();sim.completedRelations=new Set();sim.finished=false;sim.currentOptions=[];sim.warning60=false;sim.overtime=false;
- startScreen.style.display="none";chat.style.display="block";controlWrap.style.display="block";restartButton.style.display="none";reconsiderButton.style.display="none";choiceList.style.display="grid";chat.innerHTML="";
+ startScreen.style.display="none";chat.style.display="block";controlWrap.style.display="block";restartButton.style.display="none";reconsiderButton.style.display="none";choiceList.style.display="grid";chat.innerHTML="";printReport.innerHTML="";
  updateScenarioStatus();
  addMessage("left","system","災害対策本部",randomScenarioIntro(code,severity),"初期情報 ／ 情報確度 C");
  updateHeader();renderTurn();syncControlHeight();startTimer();
@@ -2140,6 +2211,7 @@ function finish(){sim.finished=true;if(timerHandle)clearInterval(timerHandle);co
  if(mistakes.details.length)addMessage("left","event danger","重大判断ミス",mistakes.details.join("\n"));
  if(risk.details.length)addMessage("left","event danger","未確認重大リスク",risk.details.join("\n"));
  addMessage("left","system","結果の留意事項","本結果は訓練上の参考であり、唯一・絶対の正解を示すものではありません。実災害では、現地状況と最新情報を踏まえて判断してください。");
+ appendPdfExportButton();
  promptText.textContent="シミュレーションは終了しました";choiceList.style.display="none";reconsiderButton.style.display="none";restartButton.style.display="block";progressBar.style.width="100%";syncControlHeight()
 }
 
@@ -2151,7 +2223,7 @@ if("ResizeObserver"in window)new ResizeObserver(syncControlHeight).observe(contr
 window.addEventListener("resize",syncControlHeight);
 updateHeader();syncControlHeight();
 </script>
-<!-- deploy: Ver.3.34 -->
-<!-- deploy-build: Ver.3.34 -->
+<!-- deploy: Ver.3.35 -->
+<!-- deploy-build: Ver.3.35 -->
 </body>
 </html>
